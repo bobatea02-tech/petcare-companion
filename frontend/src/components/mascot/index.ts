@@ -1,0 +1,1 @@
+export { PetMascot } from './PetMascot'

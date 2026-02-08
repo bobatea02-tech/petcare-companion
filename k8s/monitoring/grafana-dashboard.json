@@ -1,0 +1,83 @@
+{
+  "dashboard": {
+    "title": "PawPal Application Metrics",
+    "tags": ["pawpal", "application"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{namespace=\"pawpal\"}[5m])",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "Response Time (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace=\"pawpal\"}[5m]))",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{namespace=\"pawpal\",status=~\"5..\"}[5m])",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "database_connection_pool_size{namespace=\"pawpal\"}",
+            "legendFormat": "Pool Size"
+          },
+          {
+            "expr": "database_connection_pool_active{namespace=\"pawpal\"}",
+            "legendFormat": "Active Connections"
+          }
+        ]
+      },
+      {
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total{namespace=\"pawpal\"}[5m]) / rate(cache_requests_total{namespace=\"pawpal\"}[5m])",
+            "legendFormat": "Hit Rate"
+          }
+        ]
+      },
+      {
+        "title": "Pod CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{namespace=\"pawpal\"}[5m])",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "title": "Pod Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{namespace=\"pawpal\"}",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Weekly Health Reports Generator",
+  "description": "Automatically generates and sends weekly health reports with AI insights for all users",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Generate weekly health reports by calling the /api/v1/workflows/notifications/weekly-reports endpoint. This will create and send comprehensive health summaries with AI insights to all users."
+  }
+}

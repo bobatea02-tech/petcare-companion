@@ -1,0 +1,6 @@
+export { PawIcon } from './PawIcon'
+export { BoneIcon } from './BoneIcon'
+export { PillBottleIcon } from './PillBottleIcon'
+export { FoodBowlIcon } from './FoodBowlIcon'
+export { BellIcon } from './BellIcon'
+export { PharmacyIcon } from './PharmacyIcon'

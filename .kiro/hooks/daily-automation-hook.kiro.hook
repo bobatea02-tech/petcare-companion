@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Daily Pet Care Automation",
+  "description": "Automatically creates daily medication and feeding log entries at 12:01 AM for all active pets",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Execute the daily automation workflow by calling the /api/v1/workflows/daily-automation endpoint. This will create medication and feeding log entries for all active pets and schedules."
+  }
+}

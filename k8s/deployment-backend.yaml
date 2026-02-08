@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pawpal-backend
+  namespace: pawpal
+  labels:
+    app: pawpal-backend
+    tier: backend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: pawpal-backend
+  template:
+    metadata:
+      labels:
+        app: pawpal-backend
+        tier: backend
+    spec:
+      containers:
+      - name: api
+        image: pawpal/backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        
+        env:
+        - name: ALLOWED_HOSTS
+          value: '["https://api.pawpal.com", "https://www.pawpal.com"]'
+        
+        envFrom:
+        - configMapRef:
+            name: pawpal-config
+        - secretRef:
+            name: pawpal-secrets
+        
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health/live
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /api/v1/health/startup
+            port: 8000
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        
+        volumeMounts:
+        - name: file-storage
+          mountPath: /app/file_storage
+        - name: logs
+          mountPath: /app/logs
+      
+      volumes:
+      - name: file-storage
+        persistentVolumeClaim:
+          claimName: pawpal-file-storage
+      - name: logs
+        emptyDir: {}
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - pawpal-backend
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pawpal-backend-service
+  namespace: pawpal
+  labels:
+    app: pawpal-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: pawpal-backend
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pawpal-file-storage
+  namespace: pawpal
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard

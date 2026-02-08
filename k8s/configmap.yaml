@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pawpal-config
+  namespace: pawpal
+data:
+  # Application settings
+  APP_NAME: "PawPal Voice Pet Care Assistant"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  
+  # AI Configuration
+  AI_PROVIDER: "gemini"
+  PRIMARY_AI_MODEL: "gemini-2.5-pro"
+  FALLBACK_AI_MODEL: "gemini-2.5-flash"
+  AI_TEMPERATURE: "0.3"
+  AI_MAX_TOKENS: "1000"
+  
+  # Voice Interface
+  STT_PROVIDER: "web_speech_api"
+  TTS_PROVIDER: "web_speech_api"
+  TTS_VOICE: "nova"
+  TTS_SPEED: "0.95"
+  
+  # File Upload
+  MAX_FILE_SIZE: "10485760"
+  
+  # Notification Settings
+  MEDICATION_REMINDER_MINUTES: "15"
+  
+  # Cache Settings
+  REDIS_ENABLED: "true"
+  CACHE_DEFAULT_TTL: "300"
+  
+  # Database Pool Settings
+  DATABASE_POOL_SIZE: "20"
+  DATABASE_MAX_OVERFLOW: "10"
+  DATABASE_POOL_TIMEOUT: "30"
+  DATABASE_POOL_RECYCLE: "3600"
+  
+  # Security
+  FORCE_HTTPS: "true"
+  HSTS_MAX_AGE: "31536000"
+  HSTS_INCLUDE_SUBDOMAINS: "true"
+  ENABLE_SECURITY_HEADERS: "true"
+  
+  # Monitoring
+  ENABLE_METRICS: "true"
+  METRICS_PORT: "9090"
+  SENTRY_ENVIRONMENT: "production"
+  SENTRY_TRACES_SAMPLE_RATE: "0.1"

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pawpal-frontend
+  namespace: pawpal
+  labels:
+    app: pawpal-frontend
+    tier: frontend
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: pawpal-frontend
+  template:
+    metadata:
+      labels:
+        app: pawpal-frontend
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: pawpal/frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://api.pawpal.com/api/v1"
+        - name: NEXT_PUBLIC_APP_NAME
+          value: "PawPal Voice Pet Care Assistant"
+        - name: NEXT_PUBLIC_ENVIRONMENT
+          value: "production"
+        - name: NEXT_PUBLIC_ENABLE_ANALYTICS
+          value: "true"
+        - name: NEXT_PUBLIC_ENABLE_ERROR_TRACKING
+          value: "true"
+        - name: NEXT_PUBLIC_ENABLE_SERVICE_WORKER
+          value: "true"
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - pawpal-frontend
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pawpal-frontend-service
+  namespace: pawpal
+  labels:
+    app: pawpal-frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: pawpal-frontend

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Medication Reminders Scheduler",
+  "description": "Automatically schedules 15-minute advance reminders for upcoming medications",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Schedule medication reminders by calling the /api/v1/workflows/notifications/medication-reminders endpoint. This will send 15-minute advance notifications for upcoming medication doses."
+  }
+}

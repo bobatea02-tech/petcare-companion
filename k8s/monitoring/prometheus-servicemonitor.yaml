@@ -1,0 +1,36 @@
+# ServiceMonitor for Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pawpal-backend-metrics
+  namespace: pawpal
+  labels:
+    app: pawpal-backend
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: pawpal-backend
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    scheme: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pawpal-backend-metrics
+  namespace: pawpal
+  labels:
+    app: pawpal-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: pawpal-backend

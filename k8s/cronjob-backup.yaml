@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pawpal-db-backup
+  namespace: pawpal
+  labels:
+    app: pawpal-backup
+spec:
+  # Run daily at 2 AM UTC
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: pawpal-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: pawpal/backend:latest
+            imagePullPolicy: Always
+            command:
+            - python
+            - scripts/backup_database.py
+            - --s3
+            - --bucket
+            - pawpal-backups
+            
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: pawpal-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pawpal-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+            
+            envFrom:
+            - configMapRef:
+                name: pawpal-config
+            - secretRef:
+                name: pawpal-secrets
+            
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /app/backups
+          
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: pawpal-backup-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pawpal-backup-storage
+  namespace: pawpal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard

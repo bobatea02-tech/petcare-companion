@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Appointment Reminders Scheduler",
+  "description": "Automatically schedules appointment reminders 24 hours and 2 hours before scheduled appointments",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Schedule appointment reminders by calling the /api/v1/workflows/notifications/appointment-reminders endpoint. This will send notifications 24 hours and 2 hours before scheduled appointments."
+  }
+}

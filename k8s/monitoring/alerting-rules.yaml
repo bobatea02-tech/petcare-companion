@@ -1,0 +1,100 @@
+# PrometheusRule for alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pawpal-alerts
+  namespace: pawpal
+  labels:
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: pawpal-application
+    interval: 30s
+    rules:
+    # High error rate
+    - alert: HighErrorRate
+      expr: |
+        rate(http_requests_total{namespace="pawpal",status=~"5.."}[5m]) > 0.05
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High error rate detected"
+        description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+    
+    # Slow response time
+    - alert: SlowResponseTime
+      expr: |
+        histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace="pawpal"}[5m])) > 2
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Slow response time detected"
+        description: "95th percentile response time is {{ $value }}s for {{ $labels.pod }}"
+    
+    # High CPU usage
+    - alert: HighCPUUsage
+      expr: |
+        rate(container_cpu_usage_seconds_total{namespace="pawpal"}[5m]) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "CPU usage is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+    
+    # High memory usage
+    - alert: HighMemoryUsage
+      expr: |
+        container_memory_usage_bytes{namespace="pawpal"} / container_spec_memory_limit_bytes{namespace="pawpal"} > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is {{ $value | humanizePercentage }} for {{ $labels.pod }}"
+    
+    # Pod not ready
+    - alert: PodNotReady
+      expr: |
+        kube_pod_status_ready{namespace="pawpal",condition="false"} == 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod not ready"
+        description: "Pod {{ $labels.pod }} is not ready"
+    
+    # Database connection pool exhausted
+    - alert: DatabasePoolExhausted
+      expr: |
+        database_connection_pool_active{namespace="pawpal"} / database_connection_pool_size{namespace="pawpal"} > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Database connection pool nearly exhausted"
+        description: "Connection pool usage is {{ $value | humanizePercentage }}"
+    
+    # Low cache hit rate
+    - alert: LowCacheHitRate
+      expr: |
+        rate(cache_hits_total{namespace="pawpal"}[5m]) / rate(cache_requests_total{namespace="pawpal"}[5m]) < 0.5
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Low cache hit rate"
+        description: "Cache hit rate is {{ $value | humanizePercentage }}"
+    
+    # Deployment replica mismatch
+    - alert: DeploymentReplicaMismatch
+      expr: |
+        kube_deployment_spec_replicas{namespace="pawpal"} != kube_deployment_status_replicas_available{namespace="pawpal"}
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Deployment replica mismatch"
+        description: "Deployment {{ $labels.deployment }} has {{ $value }} replicas available, expected {{ $labels.spec_replicas }}"

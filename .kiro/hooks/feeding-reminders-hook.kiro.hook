@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Feeding Reminders Scheduler",
+  "description": "Automatically schedules 15-minute advance reminders for upcoming feeding times",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Schedule feeding reminders by calling the /api/v1/workflows/notifications/feeding-reminders endpoint. This will send 15-minute advance notifications for upcoming feeding times."
+  }
+}
