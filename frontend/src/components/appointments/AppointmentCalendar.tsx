@@ -1,258 +1,257 @@
-/**
- * AppointmentCalendar Component
- * Calendar view for appointments with vet clinic icons and color coding
- */
-'use client'
-
-import React, { useState } from 'react'
-import { Appointment, APPOINTMENT_TYPE_LABELS } from '@/types/appointments'
-import { colors, borderRadius, spacing, shadows } from '@/lib/design-tokens'
+import { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Phone, AlertCircle, Download } from 'lucide-react';
+import { api } from '@/lib/api';
+import type { Appointment } from '@/types/appointments';
+import {
+  appointmentToCalendarEvent,
+  findConflictingAppointments,
+  formatAppointmentDate,
+  downloadICalendar,
+  groupAppointmentsByDate,
+} from '@/lib/calendarUtils';
 
 interface AppointmentCalendarProps {
-  appointments: Appointment[]
-  onDateSelect?: (date: Date) => void
-  onAppointmentClick?: (appointment: Appointment) => void
+  petId?: string;
 }
 
-export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
-  appointments,
-  onDateSelect,
-  onAppointmentClick,
-}) => {
-  const [currentDate, setCurrentDate] = useState(new Date())
+export function AppointmentCalendar({ petId }: AppointmentCalendarProps) {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [view, setView] = useState<'list' | 'calendar'>('list');
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    return new Date(year, month + 1, 0).getDate()
-  }
+  useEffect(() => {
+    loadAppointments();
+  }, [petId]);
 
-  const getFirstDayOfMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    return new Date(year, month, 1).getDay()
-  }
+  const loadAppointments = async () => {
+    setLoading(true);
+    try {
+      let response;
+      if (petId) {
+        response = await api.getPetAppointments(petId, {
+          include_past: true,
+          include_cancelled: false,
+        });
+      } else {
+        response = await api.getUserUpcomingAppointments(30);
+      }
 
-  const getAppointmentsForDate = (date: Date) => {
-    return appointments.filter((apt) => {
-      const aptDate = new Date(apt.appointment_date)
-      return (
-        aptDate.getDate() === date.getDate() &&
-        aptDate.getMonth() === date.getMonth() &&
-        aptDate.getFullYear() === date.getFullYear()
-      )
-    })
-  }
-
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
-  }
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
-  }
-
-  const today = new Date()
-  const daysInMonth = getDaysInMonth(currentDate)
-  const firstDay = getFirstDayOfMonth(currentDate)
-  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-
-  const days = []
-  for (let i = 0; i < firstDay; i++) {
-    days.push(null)
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push(i)
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'emergency':
-        return '#ef4444'
-      case 'vaccination':
-        return colors.secondary[500]
-      case 'checkup':
-        return colors.accent[500]
-      case 'surgery':
-        return colors.primary[600]
-      default:
-        return colors.primary[400]
+      if (response.data) {
+        const appointmentList = petId ? response.data.appointments : response.data;
+        setAppointments(appointmentList || []);
+      }
+    } catch (error) {
+      console.error('Failed to load appointments:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDownloadICS = (appointment: Appointment) => {
+    downloadICalendar(appointment);
+  };
+
+  const upcomingAppointments = appointments.filter((apt) => apt.is_upcoming);
+  const pastAppointments = appointments.filter((apt) => apt.is_past);
+  const groupedAppointments = groupAppointmentsByDate(upcomingAppointments);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
-    <div
-      style={{
-        backgroundColor: 'white',
-        borderRadius: borderRadius.lg,
-        padding: spacing.lg,
-        boxShadow: shadows.md,
-      }}
-    >
-      {/* Calendar Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-        <button
-          onClick={previousMonth}
-          style={{
-            backgroundColor: 'transparent',
-            border: 'none',
-            fontSize: '1.5rem',
-            cursor: 'pointer',
-            padding: spacing.sm,
-          }}
-        >
-          ◀️
-        </button>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#111827', margin: 0 }}>
-          {monthName}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold flex items-center gap-2">
+          <Calendar className="w-6 h-6" />
+          Appointments
         </h2>
-        <button
-          onClick={nextMonth}
-          style={{
-            backgroundColor: 'transparent',
-            border: 'none',
-            fontSize: '1.5rem',
-            cursor: 'pointer',
-            padding: spacing.sm,
-          }}
-        >
-          ▶️
-        </button>
-      </div>
-
-      {/* Day Headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: spacing.xs, marginBottom: spacing.sm }}>
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div
-            key={day}
-            style={{
-              textAlign: 'center',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: '#6b7280',
-              padding: spacing.xs,
-            }}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setView('list')}
+            className={`px-4 py-2 rounded-lg ${
+              view === 'list'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: spacing.xs }}>
-        {days.map((day, index) => {
-          if (day === null) {
-            return <div key={`empty-${index}`} />
-          }
-
-          const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-          const dayAppointments = getAppointmentsForDate(date)
-          const isToday =
-            date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear()
-
-          return (
-            <div
-              key={day}
-              onClick={() => onDateSelect && onDateSelect(date)}
-              style={{
-                minHeight: '80px',
-                padding: spacing.xs,
-                borderRadius: borderRadius.md,
-                border: isToday ? `2px solid ${colors.primary[500]}` : '1px solid #e5e7eb',
-                backgroundColor: isToday ? colors.primary[50] : 'white',
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.875rem',
-                  fontWeight: isToday ? 600 : 400,
-                  color: isToday ? colors.primary[700] : '#374151',
-                  marginBottom: spacing.xs,
-                }}
-              >
-                {day}
-              </div>
-              {dayAppointments.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {dayAppointments.slice(0, 2).map((apt) => (
-                    <div
-                      key={apt.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onAppointmentClick && onAppointmentClick(apt)
-                      }}
-                      style={{
-                        backgroundColor: getTypeColor(apt.appointment_type),
-                        color: 'white',
-                        fontSize: '0.625rem',
-                        padding: '2px 4px',
-                        borderRadius: '3px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        cursor: 'pointer',
-                      }}
-                      title={`${new Date(apt.appointment_date).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })} - ${apt.clinic_name}`}
-                    >
-                      {new Date(apt.appointment_date).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                  ))}
-                  {dayAppointments.length > 2 && (
-                    <div
-                      style={{
-                        fontSize: '0.625rem',
-                        color: '#6b7280',
-                        textAlign: 'center',
-                      }}
-                    >
-                      +{dayAppointments.length - 2} more
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Legend */}
-      <div style={{ marginTop: spacing.lg, paddingTop: spacing.md, borderTop: '1px solid #e5e7eb' }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: spacing.sm }}>
-          Appointment Types:
+            List
+          </button>
+          <button
+            onClick={() => setView('calendar')}
+            className={`px-4 py-2 rounded-lg ${
+              view === 'calendar'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Calendar
+          </button>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.md }}>
-          {[
-            { type: 'emergency', label: 'Emergency', icon: '🚨' },
-            { type: 'vaccination', label: 'Vaccination', icon: '💉' },
-            { type: 'checkup', label: 'Check-up', icon: '🩺' },
-            { type: 'surgery', label: 'Surgery', icon: '⚕️' },
-          ].map(({ type, label, icon }) => (
-            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
-              <div
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '3px',
-                  backgroundColor: getTypeColor(type),
-                }}
-              />
-              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                {icon} {label}
-              </span>
+      </div>
+
+      {/* Upcoming Appointments */}
+      {upcomingAppointments.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Upcoming ({upcomingAppointments.length})
+          </h3>
+          {Object.entries(groupedAppointments).map(([date, dateAppointments]) => (
+            <div key={date} className="space-y-2">
+              <p className="text-sm font-medium text-gray-600">{date}</p>
+              {dateAppointments.map((appointment) => (
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  onDownload={handleDownloadICS}
+                  conflicts={findConflictingAppointments(appointment, appointments)}
+                />
+              ))}
             </div>
           ))}
         </div>
+      )}
+
+      {/* Past Appointments */}
+      {pastAppointments.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Past ({pastAppointments.length})
+          </h3>
+          {pastAppointments.slice(0, 5).map((appointment) => (
+            <AppointmentCard
+              key={appointment.id}
+              appointment={appointment}
+              onDownload={handleDownloadICS}
+              isPast
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {appointments.length === 0 && (
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-500">No appointments scheduled</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AppointmentCardProps {
+  appointment: Appointment;
+  onDownload: (appointment: Appointment) => void;
+  conflicts?: Appointment[];
+  isPast?: boolean;
+}
+
+function AppointmentCard({
+  appointment,
+  onDownload,
+  conflicts = [],
+  isPast = false,
+}: AppointmentCardProps) {
+  const hasConflicts = conflicts.length > 0;
+
+  return (
+    <div
+      className={`p-4 rounded-lg border-2 ${
+        hasConflicts
+          ? 'border-red-300 bg-red-50'
+          : isPast
+          ? 'border-gray-200 bg-gray-50'
+          : 'border-blue-200 bg-blue-50'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 space-y-2">
+          {/* Type and Status */}
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-2 py-1 rounded text-xs font-medium ${
+                appointment.appointment_type === 'emergency'
+                  ? 'bg-red-100 text-red-700'
+                  : appointment.appointment_type === 'checkup'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              {appointment.appointment_type}
+            </span>
+            <span className="text-xs text-gray-500">{appointment.status}</span>
+          </div>
+
+          {/* Clinic Name */}
+          <h4 className="font-semibold text-gray-900">{appointment.clinic_name}</h4>
+
+          {/* Date and Time */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Clock className="w-4 h-4" />
+            <span>{formatAppointmentDate(appointment.appointment_date)}</span>
+            {appointment.hours_until_appointment !== undefined &&
+              appointment.hours_until_appointment > 0 && (
+                <span className="text-xs text-gray-500">
+                  (in {Math.round(appointment.hours_until_appointment)}h)
+                </span>
+              )}
+          </div>
+
+          {/* Location */}
+          {appointment.clinic_address && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <MapPin className="w-4 h-4" />
+              <span>{appointment.clinic_address}</span>
+            </div>
+          )}
+
+          {/* Phone */}
+          {appointment.clinic_phone && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Phone className="w-4 h-4" />
+              <span>{appointment.clinic_phone}</span>
+            </div>
+          )}
+
+          {/* Purpose */}
+          <p className="text-sm text-gray-700">{appointment.purpose}</p>
+
+          {/* Veterinarian */}
+          {appointment.veterinarian && (
+            <p className="text-sm text-gray-600">Dr. {appointment.veterinarian}</p>
+          )}
+
+          {/* Conflicts Warning */}
+          {hasConflicts && (
+            <div className="flex items-start gap-2 p-2 bg-red-100 rounded">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+              <div className="text-sm text-red-700">
+                <p className="font-medium">Scheduling Conflict</p>
+                <p>
+                  This appointment conflicts with {conflicts.length} other
+                  appointment{conflicts.length > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <button
+          onClick={() => onDownload(appointment)}
+          className="p-2 hover:bg-white rounded-lg transition-colors"
+          title="Download to calendar"
+        >
+          <Download className="w-5 h-5 text-gray-600" />
+        </button>
       </div>
     </div>
-  )
+  );
 }

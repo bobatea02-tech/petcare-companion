@@ -220,6 +220,10 @@ class HealthRecord(BaseModel):
     diagnosis = Column(Text, nullable=True)
     treatment_plan = Column(Text, nullable=True)
     
+    # Archive status
+    is_archived = Column(Boolean, default=False, nullable=False, index=True)
+    archived_at = Column(DateTime, nullable=True)
+    
     # Relationships
     pet = relationship("Pet", back_populates="health_records")
     symptom_logs = relationship("SymptomLog", back_populates="health_record", cascade="all, delete-orphan")
@@ -602,3 +606,135 @@ class FileProcessingLog(BaseModel):
     
     # Relationships
     file = relationship("PetFile")
+
+
+# ============================================================================
+# COMMUNITY / BLOG MODELS
+# ============================================================================
+
+
+class BlogPost(BaseModel):
+    """Blog posts for the pet parent community."""
+    
+    __tablename__ = "blog_posts"
+    __table_args__ = (
+        # Composite indexes for common query patterns
+        {"extend_existing": True}
+    )
+    
+    # Author relationship
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Post content
+    title = Column(String(255), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    
+    # Categorization
+    pet_type = Column(String(50), nullable=True, index=True)  # dog, cat, bird, etc.
+    tags = Column(Text, nullable=True)  # JSON array of tags
+    
+    # Engagement metrics
+    view_count = Column(Integer, default=0, nullable=False, index=True)
+    like_count = Column(Integer, default=0, nullable=False, index=True)
+    comment_count = Column(Integer, default=0, nullable=False, index=True)
+    
+    # Status
+    is_published = Column(Boolean, default=True, nullable=False, index=True)
+    is_featured = Column(Boolean, default=False, nullable=False, index=True)
+    
+    # Moderation
+    is_flagged = Column(Boolean, default=False, nullable=False, index=True)
+    flagged_reason = Column(Text, nullable=True)
+    
+    # Relationships
+    author = relationship("User")
+    comments = relationship("BlogComment", back_populates="post", cascade="all, delete-orphan")
+    likes = relationship("BlogLike", back_populates="post", cascade="all, delete-orphan")
+
+
+class BlogComment(BaseModel):
+    """Comments on blog posts."""
+    
+    __tablename__ = "blog_comments"
+    __table_args__ = (
+        # Composite index for post and parent queries
+        {"extend_existing": True}
+    )
+    
+    # Post and author relationships
+    post_id = Column(UUID(as_uuid=True), ForeignKey("blog_posts.id"), nullable=False, index=True)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Comment content
+    content = Column(Text, nullable=False)
+    
+    # Nested comments (replies)
+    parent_comment_id = Column(UUID(as_uuid=True), ForeignKey("blog_comments.id"), nullable=True, index=True)
+    
+    # Engagement
+    like_count = Column(Integer, default=0, nullable=False)
+    
+    # Status
+    is_deleted = Column(Boolean, default=False, nullable=False, index=True)
+    is_flagged = Column(Boolean, default=False, nullable=False)
+    flagged_reason = Column(Text, nullable=True)
+    
+    # Relationships
+    post = relationship("BlogPost", back_populates="comments")
+    author = relationship("User")
+    parent_comment = relationship("BlogComment", remote_side="BlogComment.id", backref="replies")
+    comment_likes = relationship("CommentLike", back_populates="comment", cascade="all, delete-orphan")
+
+
+class BlogLike(BaseModel):
+    """Likes on blog posts."""
+    
+    __tablename__ = "blog_likes"
+    __table_args__ = (
+        # Unique constraint: one like per user per post
+        {"extend_existing": True}
+    )
+    
+    # Post and user relationships
+    post_id = Column(UUID(as_uuid=True), ForeignKey("blog_posts.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Relationships
+    post = relationship("BlogPost", back_populates="likes")
+    user = relationship("User")
+
+
+class CommentLike(BaseModel):
+    """Likes on comments."""
+    
+    __tablename__ = "comment_likes"
+    __table_args__ = (
+        # Unique constraint: one like per user per comment
+        {"extend_existing": True}
+    )
+    
+    # Comment and user relationships
+    comment_id = Column(UUID(as_uuid=True), ForeignKey("blog_comments.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Relationships
+    comment = relationship("BlogComment", back_populates="comment_likes")
+    user = relationship("User")
+
+
+class UserFollow(BaseModel):
+    """User following relationships."""
+    
+    __tablename__ = "user_follows"
+    __table_args__ = (
+        # Unique constraint: one follow per user pair
+        {"extend_existing": True}
+    )
+    
+    # Follower and following relationships
+    follower_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    following_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Relationships
+    follower = relationship("User", foreign_keys=[follower_id])
+    following = relationship("User", foreign_keys=[following_id])

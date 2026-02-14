@@ -24,9 +24,11 @@ from app.api.email import router as email_router
 from app.api.files import router as files_router
 from app.api.health_records import router as health_records_router
 from app.api.appointments import router as appointments_router
+from app.api.mumbai_appointments import router as mumbai_appointments_router
 from app.api.compliance import router as compliance_router
 from app.api.monitoring import router as monitoring_router
 from app.api.health import router as health_router
+from app.api.community import router as community_router
 from app.core.middleware import (
     limiter, 
     security_middleware, 
@@ -102,8 +104,10 @@ app.include_router(email_router, prefix="/api/v1")
 app.include_router(files_router, prefix="/api/v1")
 app.include_router(health_records_router, prefix="/api/v1")
 app.include_router(appointments_router, prefix="/api/v1")
+app.include_router(mumbai_appointments_router, prefix="/api/v1")
 app.include_router(compliance_router, prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
+app.include_router(community_router, prefix="/api/v1")
 
 
 @app.get("/")

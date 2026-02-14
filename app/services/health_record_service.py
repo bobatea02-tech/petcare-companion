@@ -177,7 +177,7 @@ class HealthRecordService:
     async def get_pet_health_records(
         self, user_id: str, pet_id: str, record_type: Optional[str] = None,
         start_date: Optional[date] = None, end_date: Optional[date] = None,
-        limit: int = 50, offset: int = 0
+        limit: int = 50, offset: int = 0, archived: Optional[bool] = None
     ) -> HealthRecordListResponse:
         """
         Get chronological health history for a pet with filtering capabilities.
@@ -207,6 +207,10 @@ class HealthRecordService:
             if end_date:
                 query = query.where(HealthRecord.record_date <= end_date)
             
+            # Filter by archive status
+            if archived is not None:
+                query = query.where(HealthRecord.is_archived == archived)
+            
             # Get total count
             count_query = select(func.count(HealthRecord.id)).where(
                 HealthRecord.pet_id == uuid.UUID(pet_id)
@@ -217,6 +221,8 @@ class HealthRecordService:
                 count_query = count_query.where(HealthRecord.record_date >= start_date)
             if end_date:
                 count_query = count_query.where(HealthRecord.record_date <= end_date)
+            if archived is not None:
+                count_query = count_query.where(HealthRecord.is_archived == archived)
             
             total_result = await self.db.execute(count_query)
             total_count = total_result.scalar()
@@ -242,6 +248,34 @@ class HealthRecordService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve health records: {str(e)}"
+            )
+    
+    async def archive_health_record(
+        self, user_id: str, record_id: str, archive: bool
+    ) -> HealthRecordResponse:
+        """
+        Archive or unarchive a health record.
+        
+        Moves health records between current and history based on user preference.
+        """
+        try:
+            health_record = await self._verify_health_record_ownership(user_id, record_id)
+            
+            health_record.is_archived = archive
+            health_record.archived_at = datetime.now() if archive else None
+            
+            await self.db.commit()
+            await self.db.refresh(health_record)
+            
+            return self._health_record_to_response(health_record)
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to archive health record: {str(e)}"
             )
     
     # Symptom Log Management

@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_current_user
 from app.services.ai_service import ai_service, QueryComplexity
+from app.services.conversation_service import conversation_service
+from app.services.enhanced_ai_service import enhanced_ai_service
 from app.database.models import User
 
 logger = logging.getLogger(__name__)
@@ -64,33 +66,36 @@ async def analyze_symptoms(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Analyze pet symptoms and provide triage assessment.
+    Analyze pet symptoms with knowledge base support.
     
     Args:
         request: Symptom analysis request
         current_user: Authenticated user
         
     Returns:
-        Symptom analysis result with triage response
+        Enhanced symptom analysis with triage and knowledge sources
     """
     try:
         # Get pet profile if pet_id provided
         pet_profile = None
         if request.pet_id:
             # TODO: Fetch pet profile from database using pet_id
-            # This will be implemented when pet service is available
             logger.info(f"Pet profile requested for ID: {request.pet_id}")
         
-        # Process symptom input
-        analysis_result, triage_response = await ai_service.process_symptom_input(
-            symptom_input=request.symptom_input,
-            pet_profile=pet_profile,
-            input_type=request.input_type
+        # Use enhanced AI service for analysis
+        analysis_result = await enhanced_ai_service.analyze_symptoms(
+            symptoms=request.symptom_input,
+            pet_profile=pet_profile
         )
         
+        # Format response
         return SymptomAnalysisResponse(
-            analysis_result=analysis_result.to_dict(),
-            triage_response=triage_response.to_dict()
+            analysis_result=analysis_result,
+            triage_response={
+                "triage_level": analysis_result.get("triage_level", "unknown"),
+                "is_emergency": analysis_result.get("is_emergency", False),
+                "relevant_conditions": analysis_result.get("relevant_conditions", [])
+            }
         )
         
     except Exception as e:
@@ -104,34 +109,36 @@ async def analyze_symptoms(
 @router.post("/chat")
 async def chat_with_ai(
     message: str,
+    pet_profile: Optional[Dict[str, Any]] = None,
     complexity: QueryComplexity = QueryComplexity.SIMPLE,
     current_user: User = Depends(get_current_user)
 ):
     """
-    General chat interface with AI assistant.
+    Enhanced chat interface with AI assistant using knowledge base.
     
     Args:
         message: User message
+        pet_profile: Optional pet information for context
         complexity: Query complexity level
         current_user: Authenticated user
         
     Returns:
-        AI response
+        AI response with knowledge sources
     """
     try:
-        messages = [
-            {"role": "user", "content": message}
-        ]
-        
-        response = await ai_service.generate_response(
-            messages=messages,
-            complexity=complexity
+        # Use enhanced AI service with knowledge base
+        response = await enhanced_ai_service.generate_response_with_knowledge(
+            user_message=message,
+            pet_profile=pet_profile,
+            conversation_history=None  # Can be added later
         )
         
         return {
-            "response": response["content"],
-            "model_used": response["model"],
-            "success": True
+            "response": response["response"],
+            "sources": response.get("sources", []),
+            "is_emergency": response.get("is_emergency", False),
+            "knowledge_used": response.get("knowledge_used", False),
+            "success": response["success"]
         }
         
     except Exception as e:
@@ -139,4 +146,100 @@ async def chat_with_ai(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process chat message"
+        )
+
+
+
+class ConversationMessageRequest(BaseModel):
+    """Request model for conversational AI."""
+    message: str = Field(..., description="User's message")
+    pet_id: Optional[str] = Field(None, description="Pet ID for context")
+    pet_profile: Optional[Dict[str, Any]] = Field(None, description="Pet profile information")
+
+
+class ConversationMessageResponse(BaseModel):
+    """Response model for conversational AI."""
+    message: str
+    stage: str
+    requires_response: bool
+    context_id: str
+    triage_level: Optional[str] = None
+    analysis_result: Optional[Dict[str, Any]] = None
+
+
+class ClearConversationRequest(BaseModel):
+    """Request model for clearing conversation context."""
+    pet_id: Optional[str] = Field(None, description="Pet ID")
+
+
+@router.post("/conversation", response_model=ConversationMessageResponse)
+async def conversation_message(
+    request: ConversationMessageRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Process conversational message with multi-turn dialogue support.
+    
+    This endpoint implements the conversational flow:
+    1. User reports symptoms
+    2. Assistant asks clarifying questions
+    3. User provides answers
+    4. Assistant provides structured assessment
+    
+    Args:
+        request: Conversation message request
+        current_user: Authenticated user
+        
+    Returns:
+        Conversational response with appropriate stage and guidance
+    """
+    try:
+        response = await conversation_service.process_message(
+            user_id=str(current_user.id),
+            message=request.message,
+            pet_profile=request.pet_profile,
+            pet_id=request.pet_id
+        )
+        
+        return ConversationMessageResponse(**response)
+        
+    except Exception as e:
+        logger.error(f"Error in conversation processing: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process conversation message"
+        )
+
+
+@router.post("/conversation/clear")
+async def clear_conversation(
+    request: ClearConversationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Clear conversation context to start fresh.
+    
+    Args:
+        request: Clear conversation request
+        current_user: Authenticated user
+        
+    Returns:
+        Success confirmation
+    """
+    try:
+        conversation_service.clear_context(
+            user_id=str(current_user.id),
+            pet_id=request.pet_id
+        )
+        
+        return {
+            "success": True,
+            "message": "Conversation context cleared"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error clearing conversation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clear conversation context"
         )

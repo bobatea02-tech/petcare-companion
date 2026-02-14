@@ -78,6 +78,8 @@ class HealthRecordResponse(BaseHealthRecordSchema):
     pet_id: str = Field(..., description="ID of the pet this record belongs to")
     created_at: datetime = Field(..., description="Timestamp when record was created")
     updated_at: datetime = Field(..., description="Timestamp when record was last updated")
+    is_archived: bool = Field(default=False, description="Whether the record is archived")
+    archived_at: Optional[datetime] = Field(None, description="Timestamp when record was archived")
     
     # Related data
     symptom_logs: List['SymptomLogResponse'] = Field(default=[], description="Associated symptom logs")

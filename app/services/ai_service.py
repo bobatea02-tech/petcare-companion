@@ -111,6 +111,7 @@ class SymptomAnalysisResult:
         recommendations: List[str],
         symptoms_processed: List[str],
         model_used: str,
+        severity_rating: int = 3,
         compressed_knowledge_used: bool = False
     ):
         self.triage_level = triage_level
@@ -119,6 +120,7 @@ class SymptomAnalysisResult:
         self.recommendations = recommendations
         self.symptoms_processed = symptoms_processed
         self.model_used = model_used
+        self.severity_rating = severity_rating  # 1-5 scale
         self.compressed_knowledge_used = compressed_knowledge_used
         self.timestamp = datetime.utcnow()
     
@@ -131,6 +133,7 @@ class SymptomAnalysisResult:
             "recommendations": self.recommendations,
             "symptoms_processed": self.symptoms_processed,
             "model_used": self.model_used,
+            "severity_rating": self.severity_rating,
             "compressed_knowledge_used": self.compressed_knowledge_used,
             "timestamp": self.timestamp.isoformat()
         }
@@ -765,27 +768,39 @@ class AIService:
         # If no specific symptoms found, return the original input as a symptom
         return found_symptoms if found_symptoms else [symptom_input.strip()]
     
-    def _parse_triage_response(self, ai_response: str) -> Tuple[TriageLevel, float, str, List[str]]:
+    def _parse_triage_response(self, ai_response: str) -> Tuple[TriageLevel, float, int, str, List[str]]:
         """
-        Parse AI response to extract triage level, confidence, analysis, and recommendations.
+        Parse AI response to extract triage level, confidence, severity rating, analysis, and recommendations.
         
         Args:
             ai_response: Raw AI response text
             
         Returns:
-            Tuple of (triage_level, confidence_score, analysis, recommendations)
+            Tuple of (triage_level, confidence_score, severity_rating, analysis, recommendations)
         """
         try:
-            # Try to parse as JSON first
-            if ai_response.strip().startswith('{'):
-                data = json.loads(ai_response)
+            # Try to parse as JSON first - look for JSON anywhere in the response
+            import re
+            json_match = re.search(r'\{[^{}]*"triage_level"[^{}]*\}', ai_response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                data = json.loads(json_str)
                 triage_level = TriageLevel(data.get('triage_level', 'yellow').lower())
                 confidence = float(data.get('confidence_score', 0.5))
+                severity_rating = int(data.get('severity_rating', 3))
                 analysis = data.get('analysis', '')
                 recommendations = data.get('recommendations', [])
-                return triage_level, confidence, analysis, recommendations
-        except (json.JSONDecodeError, ValueError, KeyError):
-            pass
+                
+                # Ensure recommendations is a list
+                if isinstance(recommendations, str):
+                    recommendations = [recommendations]
+                
+                # Validate severity rating is 1-5
+                severity_rating = max(1, min(5, severity_rating))
+                
+                return triage_level, confidence, severity_rating, analysis, recommendations
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.warning(f"Failed to parse JSON response: {e}")
         
         # Fallback to text parsing
         response_lower = ai_response.lower()
@@ -793,32 +808,71 @@ class AIService:
         # Determine triage level from keywords (using word boundaries for accuracy)
         import re
         
-        emergency_pattern = r'\b(emergency|immediate|urgent|red)\b'
-        schedule_pattern = r'\b(schedule|vet|visit|yellow|appointment)\b'
-        monitor_pattern = r'\b(monitor|home|green|routine|watch)\b'
+        emergency_pattern = r'\b(emergency|immediate|urgent|red|critical)\b'
+        schedule_pattern = r'\b(schedule|vet|visit|yellow|appointment|concern)\b'
+        monitor_pattern = r'\b(monitor|home|green|routine|watch|mild)\b'
         
         if re.search(emergency_pattern, response_lower):
             triage_level = TriageLevel.RED
             confidence = 0.8
+            severity_rating = 5
         elif re.search(schedule_pattern, response_lower):
             triage_level = TriageLevel.YELLOW
             confidence = 0.7
+            severity_rating = 3
         elif re.search(monitor_pattern, response_lower):
             triage_level = TriageLevel.GREEN
             confidence = 0.6
+            severity_rating = 1
         else:
             # Default to YELLOW for safety if unclear
             triage_level = TriageLevel.YELLOW
             confidence = 0.5
+            severity_rating = 3
         
-        # Extract recommendations (simple approach)
+        # Extract recommendations from text
         recommendations = []
-        if 'recommend' in response_lower:
-            # Split by sentences and find recommendation sentences
-            sentences = ai_response.split('.')
-            recommendations = [s.strip() for s in sentences if 'recommend' in s.lower()]
         
-        return triage_level, confidence, ai_response, recommendations
+        # Look for numbered lists (1. 2. 3. etc)
+        numbered_items = re.findall(r'(?:^|\n)\s*\d+[\.)]\s*([^\n]+)', ai_response, re.MULTILINE)
+        if numbered_items:
+            recommendations.extend([item.strip() for item in numbered_items if item.strip()])
+        
+        # Look for bullet points
+        bullet_items = re.findall(r'(?:^|\n)\s*[-•*]\s*([^\n]+)', ai_response, re.MULTILINE)
+        if bullet_items:
+            recommendations.extend([item.strip() for item in bullet_items if item.strip()])
+        
+        # Look for "recommend" sentences
+        if not recommendations and 'recommend' in response_lower:
+            sentences = re.split(r'[.!?]+', ai_response)
+            recommendations = [s.strip() for s in sentences if 'recommend' in s.lower() and len(s.strip()) > 10]
+        
+        # If still no recommendations, create generic ones based on triage level
+        if not recommendations:
+            if triage_level == TriageLevel.RED:
+                recommendations = [
+                    "Seek immediate veterinary care - your pet needs urgent attention",
+                    "Please don't wait - contact your emergency vet right away",
+                    "Keep your pet calm and comfortable while getting to the clinic",
+                    "Bring any medications your pet is currently taking"
+                ]
+            elif triage_level == TriageLevel.YELLOW:
+                recommendations = [
+                    "Schedule a veterinary appointment within the next 24-48 hours",
+                    "Monitor your pet's symptoms closely and note any changes",
+                    "Keep your pet comfortable, well-hydrated, and in a quiet space",
+                    "Watch for any worsening signs and contact your vet if concerned"
+                ]
+            else:  # GREEN
+                recommendations = [
+                    "Monitor your pet at home for the next 24-48 hours",
+                    "Ensure fresh water is always available",
+                    "Maintain your pet's normal feeding and care routine",
+                    "Contact your vet if symptoms worsen, persist, or you have concerns"
+                ]
+        
+        return triage_level, confidence, severity_rating, ai_response, recommendations
     
     async def analyze_symptoms(
         self,
@@ -866,7 +920,14 @@ Pet Information:
         
         # Create system prompt for triage analysis
         system_prompt = f"""
-You are a veterinary triage assistant. Analyze the reported symptoms and provide a triage assessment.
+You are a compassionate veterinary care assistant dedicated to providing caring, helpful medical support for pets and their owners.
+
+Your role is to:
+1. Analyze symptoms with empathy and understanding
+2. Provide clear, actionable medical guidance
+3. Offer comfort and reassurance to worried pet owners
+4. Rate severity on a scale of 1-5 (1=very mild, 5=critical emergency)
+5. Give specific, caring recommendations
 
 Veterinary Knowledge Base (ScaleDown Compressed):
 {knowledge_base}
@@ -877,14 +938,17 @@ Provide your response in the following JSON format:
 {{
     "triage_level": "red|yellow|green",
     "confidence_score": 0.0-1.0,
-    "analysis": "Detailed analysis of symptoms",
-    "recommendations": ["recommendation 1", "recommendation 2", ...]
+    "severity_rating": 1-5,
+    "analysis": "Detailed, caring analysis of symptoms with empathy",
+    "recommendations": ["specific recommendation 1", "specific recommendation 2", ...]
 }}
 
-Triage Levels:
-- RED: Emergency - immediate veterinary attention required
-- YELLOW: Schedule vet visit within 24-48 hours
-- GREEN: Monitor at home, routine care sufficient
+Triage Levels & Severity Ratings:
+- RED (Severity 4-5): Emergency - immediate veterinary attention required. Console the owner and emphasize urgency with care.
+- YELLOW (Severity 2-3): Schedule vet visit within 24-48 hours. Provide reassurance and clear next steps.
+- GREEN (Severity 1): Monitor at home, routine care sufficient. Offer supportive guidance and when to escalate.
+
+Always maintain a caring, supportive tone that helps pet owners feel understood and guided.
 """
         
         user_prompt = f"""
@@ -910,7 +974,7 @@ Please analyze these symptoms and provide a triage assessment.
             )
             
             # Parse the AI response
-            triage_level, confidence, analysis, recommendations = self._parse_triage_response(
+            triage_level, confidence, severity_rating, analysis, recommendations = self._parse_triage_response(
                 response["content"]
             )
             
@@ -921,6 +985,7 @@ Please analyze these symptoms and provide a triage assessment.
                 recommendations=recommendations,
                 symptoms_processed=symptoms,
                 model_used=response["model"],
+                severity_rating=severity_rating,
                 compressed_knowledge_used=compressed_knowledge_used
             )
             
@@ -930,10 +995,15 @@ Please analyze these symptoms and provide a triage assessment.
             return SymptomAnalysisResult(
                 triage_level=TriageLevel.YELLOW,  # Safe default
                 confidence_score=0.3,
-                analysis=f"Unable to complete analysis due to technical error: {str(e)}",
-                recommendations=["Please consult with a veterinarian for proper assessment"],
+                analysis=f"I'm having trouble completing the full analysis right now, but I want to make sure your pet gets the care they need.",
+                recommendations=[
+                    "Please consult with a veterinarian for a proper assessment",
+                    "Monitor your pet closely for any changes",
+                    "If you're concerned, it's always better to seek professional advice"
+                ],
                 symptoms_processed=symptoms,
                 model_used="fallback",
+                severity_rating=3,
                 compressed_knowledge_used=False
             )
     

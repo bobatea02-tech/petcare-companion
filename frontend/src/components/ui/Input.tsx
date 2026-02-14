@@ -1,58 +1,22 @@
-import React from 'react'
-import { cn } from '@/lib/utils'
-import { generateId } from '@/lib/accessibility'
+import * as React from "react";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-  error?: string
-  helperText?: string
-}
+import { cn } from "@/lib/utils";
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helperText, type = 'text', id, ...props }, ref) => {
-    const inputId = id || generateId('input')
-    const errorId = error ? `${inputId}-error` : undefined
-    const helperId = helperText ? `${inputId}-helper` : undefined
-
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+  ({ className, type, ...props }, ref) => {
     return (
-      <div className="w-full">
-        {label && (
-          <label 
-            htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            {label}
-            {props.required && (
-              <span className="text-red-500 ml-1" aria-label="required">*</span>
-            )}
-          </label>
+      <input
+        type={type}
+        className={cn(
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          className,
         )}
-        <input
-          id={inputId}
-          type={type}
-          className={cn(
-            'pet-input w-full',
-            error && 'border-red-500 focus:border-red-500 focus:ring-red-200',
-            className
-          )}
-          ref={ref}
-          aria-invalid={error ? 'true' : 'false'}
-          aria-describedby={cn(errorId, helperId)}
-          {...props}
-        />
-        {error && (
-          <p id={errorId} className="mt-1 text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        )}
-        {helperText && !error && (
-          <p id={helperId} className="mt-1 text-sm text-gray-500">
-            {helperText}
-          </p>
-        )}
-      </div>
-    )
-  }
-)
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
+Input.displayName = "Input";
 
-Input.displayName = 'Input'
+export { Input };

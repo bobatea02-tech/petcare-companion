@@ -90,6 +90,7 @@ async def get_pet_health_records(
     record_type: Optional[str] = Query(None, description="Filter by record type (symptom_log, vaccination, checkup, emergency)"),
     start_date: Optional[date] = Query(None, description="Filter records from this date"),
     end_date: Optional[date] = Query(None, description="Filter records until this date"),
+    archived: Optional[bool] = Query(None, description="Filter by archive status (True=archived, False=current, None=all)"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of records to return"),
     offset: int = Query(0, ge=0, description="Number of records to skip"),
     current_user: User = Depends(get_current_active_user),
@@ -99,14 +100,14 @@ async def get_pet_health_records(
     Get chronological health history for a pet with filtering capabilities.
     
     Returns health records in reverse chronological order with optional filtering
-    by record type, date range, and pagination support.
+    by record type, date range, archive status, and pagination support.
     
     **Requirements validated:**
     - 6.4: Chronological health history with filtering capabilities
     """
     health_service = HealthRecordService(db)
     return await health_service.get_pet_health_records(
-        str(current_user.id), pet_id, record_type, start_date, end_date, limit, offset
+        str(current_user.id), pet_id, record_type, start_date, end_date, limit, offset, archived
     )
 
 
@@ -174,6 +175,36 @@ async def update_health_record(
     """
     health_service = HealthRecordService(db)
     return await health_service.update_health_record(str(current_user.id), record_id, health_record_data)
+
+
+@router.patch(
+    "/{record_id}/archive",
+    response_model=HealthRecordResponse,
+    summary="Archive/Unarchive health record",
+    description="Move health record to history or restore it to current records",
+    responses={
+        200: {"description": "Health record archive status updated successfully", "model": HealthRecordResponse},
+        401: {"description": "Authentication required", "model": ErrorResponse},
+        404: {"description": "Health record not found", "model": ErrorResponse},
+        429: {"description": "Rate limit exceeded", "model": ErrorResponse}
+    }
+)
+@limiter.limit(GENERAL_RATE_LIMIT)
+async def archive_health_record(
+    request: Request,
+    record_id: str,
+    archive: bool = Query(..., description="True to archive, False to unarchive"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session)
+) -> HealthRecordResponse:
+    """
+    Archive or unarchive a health record.
+    
+    Moves health records between current and history based on user preference.
+    Archived records are kept for historical reference but separated from active records.
+    """
+    health_service = HealthRecordService(db)
+    return await health_service.archive_health_record(str(current_user.id), record_id, archive)
 
 
 @router.post(
