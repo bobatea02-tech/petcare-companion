@@ -38,6 +38,7 @@ export const VoiceControls = ({
             onClick={onToggleMute}
             disabled={disabled}
             className="w-10 h-10 rounded-full"
+            aria-label={isMuted ? 'Unmute voice responses' : 'Mute voice responses'}
           >
             {isMuted ? (
               <VolumeX className="w-5 h-5 text-muted-foreground" />
@@ -59,6 +60,7 @@ export const VoiceControls = ({
             whileTap={{ scale: disabled ? 1 : 0.95 }}
             onClick={onToggleListening}
             disabled={disabled}
+            aria-label={isListening ? 'Stop listening' : 'Start listening'}
             className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
               isListening
                 ? 'bg-destructive text-destructive-foreground shadow-lg shadow-destructive/50'

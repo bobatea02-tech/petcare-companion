@@ -24,6 +24,9 @@ from app.schemas.pets import (
     VaccinationRecordResponse,
     MedicalHistoryEntryResponse,
     PetMedicalSummaryResponse,
+    WeightRecordCreate,
+    WeightRecordResponse,
+    WeightHistoryResponse,
     ErrorResponse
 )
 from app.core.dependencies import get_current_active_user
@@ -510,3 +513,67 @@ async def get_pet_medical_summary(
     """
     medical_service = MedicalService(db)
     return await medical_service.get_pet_medical_summary(str(current_user.id), pet_id)
+
+
+
+# Weight Tracking Endpoints
+
+@router.post(
+    "/{pet_id}/weight",
+    response_model=WeightRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add weight record",
+    description="Add a weight measurement record for a pet",
+    responses={
+        201: {"description": "Weight record added successfully", "model": WeightRecordResponse},
+        401: {"description": "Authentication required", "model": ErrorResponse},
+        404: {"description": "Pet not found", "model": ErrorResponse},
+        422: {"description": "Validation error in request data", "model": ErrorResponse},
+        429: {"description": "Rate limit exceeded", "model": ErrorResponse}
+    }
+)
+@limiter.limit(GENERAL_RATE_LIMIT)
+async def add_weight_record(
+    request: Request,
+    pet_id: str,
+    weight_data: WeightRecordCreate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session)
+) -> WeightRecordResponse:
+    """
+    Add a weight measurement record for a pet.
+    
+    **Requirements validated:**
+    - Weight tracking with historical data
+    """
+    medical_service = MedicalService(db)
+    return await medical_service.add_weight_record(str(current_user.id), pet_id, weight_data)
+
+
+@router.get(
+    "/{pet_id}/weight-history",
+    response_model=WeightHistoryResponse,
+    summary="Get weight history",
+    description="Retrieve weight history with trend analysis for a pet",
+    responses={
+        200: {"description": "Weight history retrieved successfully", "model": WeightHistoryResponse},
+        401: {"description": "Authentication required", "model": ErrorResponse},
+        404: {"description": "Pet not found", "model": ErrorResponse},
+        429: {"description": "Rate limit exceeded", "model": ErrorResponse}
+    }
+)
+@limiter.limit(GENERAL_RATE_LIMIT)
+async def get_weight_history(
+    request: Request,
+    pet_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session)
+) -> WeightHistoryResponse:
+    """
+    Get weight history with trend analysis for a pet.
+    
+    **Requirements validated:**
+    - Weight tracking with historical trends
+    """
+    medical_service = MedicalService(db)
+    return await medical_service.get_weight_history(str(current_user.id), pet_id)

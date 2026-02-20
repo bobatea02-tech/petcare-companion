@@ -12,6 +12,90 @@ interface AddPetDialogProps {
   onAdd: (pet: Pet) => void;
 }
 
+// Breed lists by pet type
+const breedsByType: Record<string, string[]> = {
+  dog: [
+    "Golden Retriever",
+    "Labrador Retriever",
+    "German Shepherd",
+    "Bulldog",
+    "Beagle",
+    "Poodle",
+    "Rottweiler",
+    "Yorkshire Terrier",
+    "Boxer",
+    "Dachshund",
+    "Siberian Husky",
+    "Great Dane",
+    "Doberman Pinscher",
+    "Shih Tzu",
+    "Boston Terrier",
+    "Pomeranian",
+    "Chihuahua",
+    "Pug",
+    "Cocker Spaniel",
+    "Mixed Breed"
+  ],
+  cat: [
+    "Persian",
+    "Maine Coon",
+    "Siamese",
+    "Ragdoll",
+    "British Shorthair",
+    "Abyssinian",
+    "Birman",
+    "Oriental Shorthair",
+    "Sphynx",
+    "Devon Rex",
+    "American Shorthair",
+    "Scottish Fold",
+    "Exotic Shorthair",
+    "Bengal",
+    "Russian Blue",
+    "Norwegian Forest Cat",
+    "Domestic Shorthair",
+    "Domestic Longhair",
+    "Mixed Breed"
+  ],
+  bird: [
+    "Parakeet",
+    "Cockatiel",
+    "Lovebird",
+    "Canary",
+    "Finch",
+    "Parrot",
+    "Macaw",
+    "Cockatoo",
+    "Conure",
+    "African Grey",
+    "Budgerigar",
+    "Other"
+  ],
+  rabbit: [
+    "Holland Lop",
+    "Netherland Dwarf",
+    "Mini Rex",
+    "Lionhead",
+    "Flemish Giant",
+    "English Angora",
+    "Dutch",
+    "Californian",
+    "New Zealand",
+    "Mixed Breed"
+  ],
+  other: [
+    "Hamster",
+    "Guinea Pig",
+    "Ferret",
+    "Chinchilla",
+    "Hedgehog",
+    "Turtle",
+    "Fish",
+    "Reptile",
+    "Other"
+  ]
+};
+
 export const AddPetDialog = ({ onAdd }: AddPetDialogProps) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -81,7 +165,10 @@ export const AddPetDialog = ({ onAdd }: AddPetDialogProps) => {
             </div>
             <div>
               <Label className="text-label text-muted-foreground">Type</Label>
-              <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as Pet["type"] }))}>
+              <Select 
+                value={form.type} 
+                onValueChange={v => setForm(f => ({ ...f, type: v as Pet["type"], breed: "" }))}
+              >
                 <SelectTrigger className="rounded-pill bg-olive border-accent mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -94,7 +181,19 @@ export const AddPetDialog = ({ onAdd }: AddPetDialogProps) => {
             </div>
             <div>
               <Label className="text-label text-muted-foreground">Breed</Label>
-              <Input value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} required className="rounded-pill bg-olive border-accent mt-1" />
+              <Select 
+                value={form.breed} 
+                onValueChange={v => setForm(f => ({ ...f, breed: v }))}
+              >
+                <SelectTrigger className="rounded-pill bg-olive border-accent mt-1">
+                  <SelectValue placeholder="Select breed" />
+                </SelectTrigger>
+                <SelectContent className="rounded-card bg-cream max-h-60">
+                  {breedsByType[form.type]?.map((breed) => (
+                    <SelectItem key={breed} value={breed}>{breed}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-label text-muted-foreground">Gender</Label>
@@ -136,22 +235,22 @@ export const AddPetDialog = ({ onAdd }: AddPetDialogProps) => {
             <Label className="text-label text-muted-foreground">Behavior</Label>
             <Input value={form.behavior} onChange={e => setForm(f => ({ ...f, behavior: e.target.value }))} placeholder="e.g. Playful, calm, energetic" className="rounded-pill bg-olive border-accent mt-1" />
           </div>
-          <div className="flex items-center justify-between py-2">
-            <Label className="text-label text-muted-foreground">Vaccinated</Label>
+          <div className="flex items-center justify-between py-2 px-1">
+            <Label className="text-label text-foreground font-semibold">Vaccinated</Label>
             <button
               type="button"
               onClick={() => setForm(f => ({ ...f, vaccinated: !f.vaccinated }))}
-              className={`w-14 h-8 rounded-pill transition-colors duration-300 relative flex-shrink-0 ${form.vaccinated ? "bg-primary" : "bg-input"}`}
+              className={`w-14 h-8 rounded-pill transition-colors duration-300 relative flex-shrink-0 ${form.vaccinated ? "bg-primary" : "bg-muted"}`}
             >
-              <span className={`absolute top-1 w-6 h-6 rounded-full bg-background shadow-md transition-transform duration-300 ${form.vaccinated ? "translate-x-7" : "translate-x-1"}`} />
+              <span className={`absolute top-1 w-6 h-6 rounded-full bg-card shadow-md transition-transform duration-300 ${form.vaccinated ? "translate-x-7" : "translate-x-1"}`} />
             </button>
           </div>
           <div>
             <Label className="text-label text-muted-foreground">Notes</Label>
             <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any extra info..." className="rounded-pill bg-olive border-accent mt-1" />
           </div>
-          <Button type="submit" className="w-full rounded-pill font-body text-label tracking-[0.2em] py-6">
-            Add Pet
+          <Button type="submit" className="w-full rounded-pill font-body text-label tracking-[0.2em] py-6 bg-primary text-primary-foreground hover:bg-primary/90">
+            ADD PET
           </Button>
         </form>
       </DialogContent>

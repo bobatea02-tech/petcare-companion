@@ -5,6 +5,8 @@ import { Pill, Plus, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MedicationHistory } from "@/components/MedicationHistory";
+import { useVoiceControl } from "@/hooks/useVoiceControl";
 
 interface MedicationTrackerProps {
   pet: Pet;
@@ -16,6 +18,19 @@ export const MedicationTracker = ({ pet, onUpdate }: MedicationTrackerProps) => 
   const [newMed, setNewMed] = useState<Partial<Medication>>({
     active: true,
     startDate: new Date().toISOString().split("T")[0],
+  });
+
+  // Enable voice control for medication tracker
+  const { notifyManualAction } = useVoiceControl({
+    componentId: 'medication-tracker',
+    petId: pet.id,
+    onVoiceCommand: (intent, result) => {
+      // Handle voice commands for medication tracking
+      if (result.success && intent.action === 'log_data') {
+        // Voice command added a medication
+        // UI will update automatically through onUpdate callback
+      }
+    },
   });
 
   const handleAdd = () => {
@@ -31,6 +46,8 @@ export const MedicationTracker = ({ pet, onUpdate }: MedicationTrackerProps) => 
       active: true,
     };
     onUpdate({ ...pet, medications: [...pet.medications, med] });
+    // Notify voice system of manual action
+    notifyManualAction('add-medication', { medication: med });
     setNewMed({ active: true, startDate: new Date().toISOString().split("T")[0] });
     setOpen(false);
   };
@@ -40,6 +57,8 @@ export const MedicationTracker = ({ pet, onUpdate }: MedicationTrackerProps) => 
       m.id === medId ? { ...m, active: !m.active } : m
     );
     onUpdate({ ...pet, medications: updated });
+    // Notify voice system of manual action
+    notifyManualAction('toggle-medication', { medicationId: medId });
   };
 
   const activeMeds = (pet.medications || []).filter((m) => m.active);
@@ -154,6 +173,12 @@ export const MedicationTracker = ({ pet, onUpdate }: MedicationTrackerProps) => 
           ))}
         </>
       )}
+
+      {/* Medication History from Backend */}
+      <div className="mt-8 pt-8 border-t border-border">
+        <h3 className="text-label text-muted-foreground mb-4">Medication History</h3>
+        <MedicationHistory petId={parseInt(pet.id)} petName={pet.name} />
+      </div>
     </motion.div>
   );
 };

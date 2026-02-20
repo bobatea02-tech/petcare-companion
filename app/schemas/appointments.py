@@ -15,10 +15,19 @@ class AppointmentCreate(BaseModel):
     purpose: Optional[str] = Field(None, description="Purpose or reason for appointment")
     
     # Clinic information
+    clinic_place_id: Optional[str] = Field(None, description="Google Place ID")
     clinic_name: str = Field(..., min_length=1, max_length=200, description="Name of veterinary clinic")
     clinic_address: Optional[str] = Field(None, description="Clinic address")
     clinic_phone: Optional[str] = Field(None, max_length=20, description="Clinic phone number")
     veterinarian: Optional[str] = Field(None, max_length=200, description="Veterinarian name")
+    
+    # Parent/Guardian information
+    parent_name: Optional[str] = Field(None, max_length=200, description="Parent or guardian name")
+    contact_phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
+    
+    # Booking details
+    preferred_time: Optional[str] = Field(None, max_length=20, description="Preferred time slot")
+    additional_notes: Optional[str] = Field(None, description="Additional notes or special requests")
     
     # Additional information
     notes: Optional[str] = Field(None, description="Additional notes about appointment")

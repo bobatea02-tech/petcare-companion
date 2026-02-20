@@ -1,14 +1,9 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { VetAppointment, Pet } from "@/lib/petData";
-import { CalendarDays, Plus, MapPin, Clock, Calendar } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MumbaiRealtimeBooking } from "@/components/appointments";
+import { CalendarDays, MapPin, Clock } from "lucide-react";
+import { UpcomingAppointments } from "@/components/UpcomingAppointments";
+import { AppointmentHistory } from "@/components/AppointmentHistory";
+import { useVoiceControl } from "@/hooks/useVoiceControl";
 
 interface VetBookingProps {
   pet: Pet;
@@ -16,34 +11,26 @@ interface VetBookingProps {
 }
 
 export const VetBooking = ({ pet, onUpdate }: VetBookingProps) => {
-  const [open, setOpen] = useState(false);
-  const [newAppt, setNewAppt] = useState<Partial<VetAppointment & { location: string; visitType: string }>>({
-    status: "scheduled",
-    location: "",
-    visitType: "",
+  // Enable voice control for vet booking
+  const { notifyManualAction } = useVoiceControl({
+    componentId: 'vet-booking',
+    petId: pet.id,
+    onVoiceCommand: (intent, result) => {
+      // Handle voice commands for vet appointments
+      if (result.success && intent.action === 'schedule') {
+        // Voice command scheduled an appointment
+        // UI will update automatically through onUpdate callback
+      }
+    },
   });
-
-  const handleAdd = () => {
-    if (!newAppt.date || !newAppt.time || !newAppt.reason || !newAppt.vetName) return;
-    const appt: VetAppointment = {
-      id: Date.now().toString(),
-      date: newAppt.date,
-      time: newAppt.time,
-      reason: newAppt.reason,
-      vetName: newAppt.vetName,
-      status: "scheduled",
-      notes: newAppt.notes,
-    };
-    onUpdate({ ...pet, vetAppointments: [...pet.vetAppointments, appt].sort((a, b) => a.date.localeCompare(b.date)) });
-    setNewAppt({ status: "scheduled" });
-    setOpen(false);
-  };
 
   const updateStatus = (apptId: string, status: VetAppointment["status"]) => {
     const updated = pet.vetAppointments.map((a) =>
       a.id === apptId ? { ...a, status } : a
     );
     onUpdate({ ...pet, vetAppointments: updated });
+    // Notify voice system of manual action
+    notifyManualAction('update-appointment-status', { appointmentId: apptId, status });
   };
 
   const upcoming = (pet.vetAppointments || []).filter((a) => a.status === "scheduled");
@@ -55,7 +42,11 @@ export const VetBooking = ({ pet, onUpdate }: VetBookingProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-4"
+      data-tour="vet-booking"
     >
+      {/* Upcoming Appointments from Vet Search */}
+      <UpcomingAppointments />
+
       <motion.div
         whileHover={{ scale: 1.02, y: -4 }}
         transition={{ type: "spring", stiffness: 400 }}
@@ -68,117 +59,30 @@ export const VetBooking = ({ pet, onUpdate }: VetBookingProps) => {
         <CalendarDays className="w-12 h-12 opacity-40" />
       </motion.div>
 
-      {/* Tabs for Manual vs Mumbai Booking */}
-      <Tabs defaultValue="mumbai" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="mumbai" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Mumbai Real-Time Booking
-          </TabsTrigger>
-          <TabsTrigger value="manual" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Manual Entry
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Mumbai Real-Time Booking Tab */}
-        <TabsContent value="mumbai" className="mt-6">
-          <div className="bg-gradient-to-r from-orange-50 to-green-50 rounded-card p-4 mb-4 border border-orange-200">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <MapPin className="w-4 h-4 text-orange-600" />
-              <span className="font-medium">Book with real Mumbai veterinary clinics</span>
-            </div>
-            <p className="text-xs text-gray-600 mt-1">
-              Real-time availability • 10+ verified clinics • Instant confirmation
-            </p>
+      {/* Find Vets Button */}
+      <motion.button
+        whileHover={{ scale: 1.02, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => window.location.href = '/vet-search'}
+        className="w-full bg-gradient-to-br from-primary/40 to-primary/30 text-foreground rounded-card p-6 text-left shadow-sm border border-primary/20"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
+            <MapPin className="w-6 h-6 text-primary" />
           </div>
-          
-          <MumbaiRealtimeBooking
-            petId={pet.id}
-            onSuccess={() => {
-              // Refresh appointments or show success message
-              window.location.reload();
-            }}
-          />
-        </TabsContent>
-
-        {/* Manual Entry Tab */}
-        <TabsContent value="manual" className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-label text-muted-foreground">Manual Appointments</h3>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <motion.button
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                >
-                  <Plus className="w-5 h-5" />
-                </motion.button>
-              </DialogTrigger>
-              <DialogContent className="rounded-card">
-                <DialogHeader>
-                  <DialogTitle className="font-display text-2xl">Book Appointment</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-label text-muted-foreground">Date</Label>
-                      <Input type="date" value={newAppt.date || ""} onChange={(e) => setNewAppt({ ...newAppt, date: e.target.value })} className="rounded-pill mt-1" />
-                    </div>
-                    <div>
-                      <Label className="text-label text-muted-foreground">Time</Label>
-                      <Input type="time" value={newAppt.time || ""} onChange={(e) => setNewAppt({ ...newAppt, time: e.target.value })} className="rounded-pill mt-1" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-label text-muted-foreground">Visit Type</Label>
-                    <Select value={newAppt.visitType || ""} onValueChange={(v) => setNewAppt({ ...newAppt, visitType: v, reason: v })}>
-                      <SelectTrigger className="rounded-pill mt-1">
-                        <SelectValue placeholder="Select visit type" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-card">
-                        <SelectItem value="Annual Checkup">🩺 Annual Checkup</SelectItem>
-                        <SelectItem value="Vaccination">💉 Vaccination</SelectItem>
-                        <SelectItem value="Dental Cleaning">🦷 Dental Cleaning</SelectItem>
-                        <SelectItem value="Illness/Injury">🤒 Illness / Injury</SelectItem>
-                        <SelectItem value="Surgery">🏥 Surgery</SelectItem>
-                        <SelectItem value="Grooming">✂️ Grooming</SelectItem>
-                        <SelectItem value="Follow-up">📋 Follow-up Visit</SelectItem>
-                        <SelectItem value="Other">📝 Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {newAppt.visitType === "Other" && (
-                    <Input placeholder="Describe the reason" value={newAppt.reason || ""} onChange={(e) => setNewAppt({ ...newAppt, reason: e.target.value })} className="rounded-pill" />
-                  )}
-                  <div>
-                    <Label className="text-label text-muted-foreground">Vet / Clinic Name</Label>
-                    <Input placeholder="e.g., Dr. Sarah Wilson" value={newAppt.vetName || ""} onChange={(e) => setNewAppt({ ...newAppt, vetName: e.target.value })} className="rounded-pill mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-label text-muted-foreground">📍 Location / Area</Label>
-                    <Input placeholder="e.g., Downtown, Brooklyn, Near Central Park" value={(newAppt as any).location || ""} onChange={(e) => setNewAppt({ ...newAppt, location: e.target.value })} className="rounded-pill mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-label text-muted-foreground">Pet</Label>
-                    <div className="flex items-center gap-2 mt-1 bg-secondary rounded-pill px-4 py-2.5">
-                      <span className="text-lg">{pet.type === "dog" ? "🐕" : pet.type === "cat" ? "🐱" : "🐾"}</span>
-                      <span className="font-body text-sm text-foreground">{pet.name} — {pet.breed}</span>
-                    </div>
-                  </div>
-                  <Input placeholder="Notes (optional)" value={newAppt.notes || ""} onChange={(e) => setNewAppt({ ...newAppt, notes: e.target.value })} className="rounded-pill" />
-                  <Button onClick={handleAdd} className="w-full rounded-pill font-body text-label">Book Appointment</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+          <div>
+            <h3 className="font-display text-lg">Find Vets</h3>
+            <p className="text-xs opacity-70">Search nearby clinics</p>
           </div>
+        </div>
+      </motion.button>
 
-          {upcoming.length === 0 && past.length === 0 && (
-            <p className="text-sm text-muted-foreground font-body text-center py-8">No appointments booked 🏥</p>
-          )}
+      {/* Appointment List */}
+      {upcoming.length === 0 && past.length === 0 && (
+        <p className="text-sm text-muted-foreground font-body text-center py-8">No appointments booked 🏥</p>
+      )}
 
-          {upcoming.map((appt) => (
+      {upcoming.map((appt) => (
             <motion.div
               key={appt.id}
               initial={{ opacity: 0, x: -20 }}
@@ -237,8 +141,12 @@ export const VetBooking = ({ pet, onUpdate }: VetBookingProps) => {
               ))}
             </>
           )}
-        </TabsContent>
-      </Tabs>
+
+      {/* Appointment History Section */}
+      <div className="mt-8 pt-8 border-t border-border">
+        <h3 className="text-label text-muted-foreground mb-4">Appointment History</h3>
+        <AppointmentHistory petId={parseInt(pet.id)} petName={pet.name} />
+      </div>
     </motion.div>
   );
 };

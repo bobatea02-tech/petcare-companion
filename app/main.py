@@ -29,6 +29,10 @@ from app.api.compliance import router as compliance_router
 from app.api.monitoring import router as monitoring_router
 from app.api.health import router as health_router
 from app.api.community import router as community_router
+from app.api.jojo import router as jojo_router
+from app.api.vet_search import router as vet_search_router
+# Temporarily disabled due to import errors
+# from app.api.history import router as history_router
 from app.core.middleware import (
     limiter, 
     security_middleware, 
@@ -84,7 +88,7 @@ app.middleware("http")(auth_middleware)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_HOSTS,
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:8000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,6 +112,10 @@ app.include_router(mumbai_appointments_router, prefix="/api/v1")
 app.include_router(compliance_router, prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
 app.include_router(community_router, prefix="/api/v1")
+app.include_router(jojo_router, prefix="/api/v1")
+app.include_router(vet_search_router, prefix="/api/v1")
+# Temporarily disabled due to import errors
+# app.include_router(history_router, prefix="/api/v1")
 
 
 @app.get("/")

@@ -5,6 +5,7 @@ import { UtensilsCrossed, Plus, Check, RotateCcw, Clock, Coffee, Sun, Moon } fro
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useVoiceControl } from "@/hooks/useVoiceControl";
 
 interface FeedingRemindersProps {
   pet: Pet;
@@ -29,6 +30,19 @@ export const FeedingReminders = ({ pet, onUpdate }: FeedingRemindersProps) => {
   const [open, setOpen] = useState(false);
   const [newFeeding, setNewFeeding] = useState<Partial<FeedingSchedule>>({});
 
+  // Enable voice control for feeding reminders
+  const { notifyManualAction } = useVoiceControl({
+    componentId: 'feeding-reminders',
+    petId: pet.id,
+    onVoiceCommand: (intent, result) => {
+      // Handle voice commands for feeding
+      if (result.success && intent.action === 'log_data') {
+        // Voice command added a feeding entry
+        // UI will update automatically through onUpdate callback
+      }
+    },
+  });
+
   const handleAdd = () => {
     if (!newFeeding.time || !newFeeding.food || !newFeeding.amount) return;
     const feeding: FeedingSchedule = {
@@ -39,6 +53,8 @@ export const FeedingReminders = ({ pet, onUpdate }: FeedingRemindersProps) => {
       completed: false,
     };
     onUpdate({ ...pet, feedingSchedule: [...pet.feedingSchedule, feeding].sort((a, b) => a.time.localeCompare(b.time)) });
+    // Notify voice system of manual action
+    notifyManualAction('add-feeding', { feeding });
     setNewFeeding({});
     setOpen(false);
   };
@@ -48,11 +64,15 @@ export const FeedingReminders = ({ pet, onUpdate }: FeedingRemindersProps) => {
       f.id === feedingId ? { ...f, completed: !f.completed } : f
     );
     onUpdate({ ...pet, feedingSchedule: updated });
+    // Notify voice system of manual action
+    notifyManualAction('toggle-feeding', { feedingId });
   };
 
   const resetAll = () => {
     const updated = pet.feedingSchedule.map((f) => ({ ...f, completed: false }));
     onUpdate({ ...pet, feedingSchedule: updated });
+    // Notify voice system of manual action
+    notifyManualAction('reset-feedings', {});
   };
 
   const completedCount = (pet.feedingSchedule || []).filter((f) => f.completed).length;

@@ -441,3 +441,63 @@ class PetMedicalSummaryResponse(BaseModel):
     expired_vaccinations: int = Field(..., description="Number of expired vaccinations")
     upcoming_expirations: int = Field(..., description="Vaccinations expiring within 30 days")
     last_checkup_date: Optional[date] = Field(None, description="Date of last checkup")
+
+
+
+# Weight Tracking Schemas
+
+class WeightRecordCreate(BaseModel):
+    """Schema for creating weight records."""
+    
+    weight: float = Field(..., gt=0, description="Weight value (must be positive)")
+    weight_unit: str = Field(default="lbs", description="Weight unit (lbs or kg)")
+    measurement_date: date = Field(..., description="Date of weight measurement")
+    source: Optional[str] = Field(None, max_length=100, description="Source of measurement")
+    notes: Optional[str] = Field(None, description="Additional notes")
+    
+    @field_validator('weight_unit')
+    @classmethod
+    def validate_weight_unit(cls, v):
+        """Validate weight unit."""
+        if v.lower() not in ['lbs', 'kg']:
+            raise ValueError('Weight unit must be either "lbs" or "kg"')
+        return v.lower()
+    
+    @field_validator('measurement_date')
+    @classmethod
+    def validate_measurement_date(cls, v):
+        """Validate measurement date is not in the future."""
+        if v > date.today():
+            raise ValueError('Measurement date cannot be in the future')
+        return v
+
+
+class WeightRecordResponse(BaseModel):
+    """Schema for weight record response."""
+    
+    id: str = Field(..., description="Weight record ID")
+    pet_id: str = Field(..., description="Pet ID")
+    weight: float = Field(..., description="Weight value")
+    weight_unit: str = Field(..., description="Weight unit")
+    measurement_date: date = Field(..., description="Measurement date")
+    source: Optional[str] = Field(None, description="Source of measurement")
+    notes: Optional[str] = Field(None, description="Additional notes")
+    created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Record last update timestamp")
+    
+    model_config = {"from_attributes": True}
+
+
+class WeightHistoryResponse(BaseModel):
+    """Schema for weight history with trend analysis."""
+    
+    pet_id: str = Field(..., description="Pet ID")
+    current_weight: Optional[float] = Field(None, description="Current weight from pet profile")
+    weight_unit: str = Field(default="lbs", description="Weight unit")
+    records: List[WeightRecordResponse] = Field(..., description="Historical weight records")
+    
+    # Trend analysis
+    total_records: int = Field(..., description="Total number of weight records")
+    weight_change: Optional[float] = Field(None, description="Weight change from first to last record")
+    weight_change_percent: Optional[float] = Field(None, description="Percentage weight change")
+    trend: Optional[str] = Field(None, description="Weight trend (increasing, decreasing, stable)")

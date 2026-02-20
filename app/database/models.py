@@ -102,6 +102,7 @@ class Pet(BaseModel):
     medications = relationship("Medication", back_populates="pet", cascade="all, delete-orphan")
     health_records = relationship("HealthRecord", back_populates="pet", cascade="all, delete-orphan")
     feeding_logs = relationship("FeedingLog", back_populates="pet", cascade="all, delete-orphan")
+    grooming_logs = relationship("GroomingLog", back_populates="pet", cascade="all, delete-orphan")
     feeding_schedules = relationship("FeedingSchedule", back_populates="pet", cascade="all, delete-orphan")
     appointments = relationship("Appointment", back_populates="pet", cascade="all, delete-orphan")
     files = relationship("PetFile", back_populates="pet", cascade="all, delete-orphan")
@@ -304,41 +305,57 @@ class AIAssessment(BaseModel):
 
 class Appointment(BaseModel):
     """Appointment model with clinic details and scheduling."""
-    
+
     __tablename__ = "appointments"
     __table_args__ = (
         # Composite index for date and status queries
         {"extend_existing": True}
     )
-    
+
     # Pet relationship
     pet_id = Column(UUID(as_uuid=True), ForeignKey("pets.id"), nullable=False, index=True)
-    
+
     # AI Assessment relationship (for emergency appointments from triage)
     ai_assessment_id = Column(UUID(as_uuid=True), ForeignKey("ai_assessments.id"), nullable=True, index=True)
-    
+
     # Appointment details
-    appointment_date = Column(DateTime(timezone=True), nullable=False, index=True)  # Added index for date queries
-    appointment_type = Column(String(100), nullable=False, index=True)  # Added index for type filtering
+    appointment_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    appointment_type = Column(String(100), nullable=False, index=True)
     purpose = Column(Text, nullable=True)
-    
+
     # Clinic information
+    clinic_place_id = Column(String(255), nullable=True)  # Google Place ID
     clinic_name = Column(String(200), nullable=False)
     clinic_address = Column(Text, nullable=True)
     clinic_phone = Column(String(20), nullable=True)
     veterinarian = Column(String(200), nullable=True)
-    
+
+    # Parent/Guardian information for booking
+    parent_name = Column(String(200), nullable=True)
+    contact_phone = Column(String(20), nullable=True)
+
+    # Additional booking details
+    preferred_time = Column(String(20), nullable=True)  # Time slot preference
+    additional_notes = Column(Text, nullable=True)
+
     # Status and notes
-    status = Column(String(20), default="scheduled", nullable=False, index=True)  # Added index for status filtering
+    status = Column(String(20), default="pending", nullable=False, index=True)
     notes = Column(Text, nullable=True)
-    
+
     # Reminder settings
-    reminder_sent_24h = Column(Boolean, default=False, nullable=False, index=True)  # Added index for reminder queries
-    reminder_sent_2h = Column(Boolean, default=False, nullable=False, index=True)  # Added index for reminder queries
-    
+    reminder_sent_24h = Column(Boolean, default=False, nullable=False, index=True)
+    reminder_sent_2h = Column(Boolean, default=False, nullable=False, index=True)
+
+    # Confirmation tracking
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     pet = relationship("Pet", back_populates="appointments")
     ai_assessment = relationship("AIAssessment")
+
+
 
 
 class VetClinic(BaseModel):
@@ -410,6 +427,23 @@ class FeedingLog(BaseModel):
     
     # Relationships
     pet = relationship("Pet", back_populates="feeding_logs")
+
+
+class GroomingLog(BaseModel):
+    """Grooming activity log for tracking pet grooming tasks."""
+    
+    __tablename__ = "grooming_logs"
+    
+    # Pet relationship
+    pet_id = Column(UUID(as_uuid=True), ForeignKey("pets.id"), nullable=False, index=True)
+    
+    # Grooming details
+    grooming_type = Column(String(50), nullable=False)  # bath, brush, nails, ears, teeth, haircut, general
+    completed_at = Column(DateTime(timezone=True), nullable=False)
+    notes = Column(Text, nullable=True)
+    
+    # Relationships
+    pet = relationship("Pet", back_populates="grooming_logs")
 
 
 class PetProfileHistory(BaseModel):
@@ -533,6 +567,31 @@ class PetMedicalHistoryEntry(BaseModel):
     
     # Relationships
     pet = relationship("Pet")
+
+
+class PetWeightRecord(BaseModel):
+    """Weight tracking records for pets."""
+    
+    __tablename__ = "pet_weight_records"
+    
+    # Pet relationship
+    pet_id = Column(UUID(as_uuid=True), ForeignKey("pets.id"), nullable=False, index=True)
+    
+    # Weight details
+    weight = Column(Float, nullable=False)  # in pounds or kg
+    weight_unit = Column(String(10), default="lbs", nullable=False)  # lbs or kg
+    measurement_date = Column(Date, nullable=False, index=True)
+    
+    # Context
+    source = Column(String(100), nullable=True)  # checkup, home, vet visit, etc.
+    notes = Column(Text, nullable=True)
+    
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Relationships
+    pet = relationship("Pet")
+
 
 
 class PetFile(BaseModel):
@@ -738,3 +797,44 @@ class UserFollow(BaseModel):
     # Relationships
     follower = relationship("User", foreign_keys=[follower_id])
     following = relationship("User", foreign_keys=[following_id])
+
+
+
+class ConversationHistory(BaseModel):
+    """JoJo conversation history for cross-session persistence."""
+    
+    __tablename__ = "conversation_history"
+    __table_args__ = (
+        {"extend_existing": True}
+    )
+    
+    # User and pet relationships
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    pet_id = Column(UUID(as_uuid=True), ForeignKey("pets.id"), nullable=True, index=True)
+    
+    # Conversation data
+    messages = Column(Text, nullable=False)  # JSON array of {role, content, timestamp}
+    last_accessed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User")
+    pet = relationship("Pet")
+
+
+class UserQuestionQuota(BaseModel):
+    """Rate limiting for JoJo questions (5 per hour per user)."""
+    
+    __tablename__ = "user_question_quota"
+    __table_args__ = (
+        {"extend_existing": True}
+    )
+    
+    # User relationship
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    
+    # Quota tracking
+    questions_asked = Column(Integer, default=0, nullable=False)
+    quota_reset_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Relationships
+    user = relationship("User")

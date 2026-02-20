@@ -9,12 +9,19 @@ import {
 
 interface AppointmentBookingProps {
   petId: string;
+  clinicInfo?: {
+    placeId?: string;
+    name?: string;
+    address?: string;
+    phone?: string;
+  };
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 export function AppointmentBooking({
   petId,
+  clinicInfo,
   onSuccess,
   onCancel,
 }: AppointmentBookingProps) {
@@ -23,9 +30,9 @@ export function AppointmentBooking({
     appointment_time: '',
     appointment_type: 'checkup',
     purpose: '',
-    clinic_name: '',
-    clinic_address: '',
-    clinic_phone: '',
+    clinic_name: clinicInfo?.name || '',
+    clinic_address: clinicInfo?.address || '',
+    clinic_phone: clinicInfo?.phone || '',
     veterinarian: '',
     notes: '',
   });
@@ -246,68 +253,6 @@ export function AppointmentBooking({
           required
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
         />
-      </div>
-
-      {/* Clinic Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Clinic Information</h3>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Clinic Name
-          </label>
-          <input
-            type="text"
-            name="clinic_name"
-            value={formData.clinic_name}
-            onChange={handleChange}
-            placeholder="Veterinary clinic name"
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Address
-          </label>
-          <input
-            type="text"
-            name="clinic_address"
-            value={formData.clinic_address}
-            onChange={handleChange}
-            placeholder="Clinic address"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phone Number
-          </label>
-          <input
-            type="tel"
-            name="clinic_phone"
-            value={formData.clinic_phone}
-            onChange={handleChange}
-            placeholder="Clinic phone number"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Veterinarian (Optional)
-          </label>
-          <input
-            type="text"
-            name="veterinarian"
-            value={formData.veterinarian}
-            onChange={handleChange}
-            placeholder="Dr. Smith"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
       </div>
 
       {/* Notes */}

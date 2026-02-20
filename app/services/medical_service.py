@@ -8,15 +8,19 @@ from sqlalchemy import select, and_, desc, or_
 from fastapi import HTTPException, status
 from datetime import date, timedelta
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.database.models import (
     Pet, PetMedicalCondition, PetAllergy, PetVaccinationRecord, 
-    PetMedicalHistoryEntry
+    PetMedicalHistoryEntry, PetWeightRecord
 )
 from app.schemas.pets import (
     MedicalConditionCreate, AllergyCreate, VaccinationRecordCreate,
     MedicalHistoryEntryCreate, MedicalConditionResponse, AllergyResponse,
-    VaccinationRecordResponse, MedicalHistoryEntryResponse, PetMedicalSummaryResponse
+    VaccinationRecordResponse, MedicalHistoryEntryResponse, PetMedicalSummaryResponse,
+    WeightRecordCreate, WeightRecordResponse, WeightHistoryResponse
 )
 
 
@@ -441,4 +445,123 @@ class MedicalService:
             follow_up_date=history.follow_up_date,
             created_at=history.created_at,
             updated_at=history.updated_at
+        )
+
+    
+    # Weight Tracking Methods
+    
+    async def add_weight_record(
+        self, user_id: str, pet_id: str, weight_data: WeightRecordCreate
+    ) -> WeightRecordResponse:
+        """Add a weight measurement record for a pet."""
+        try:
+            # Verify pet ownership
+            pet = await self._get_pet_with_ownership_check(user_id, pet_id)
+            
+            # Create weight record
+            weight_record = PetWeightRecord(
+                id=uuid.uuid4(),
+                pet_id=uuid.UUID(pet_id),
+                weight=weight_data.weight,
+                weight_unit=weight_data.weight_unit,
+                measurement_date=weight_data.measurement_date,
+                source=weight_data.source,
+                notes=weight_data.notes
+            )
+            
+            self.db.add(weight_record)
+            
+            # Update pet's current weight if this is the most recent measurement
+            if weight_data.measurement_date >= (pet.updated_at.date() if pet.updated_at else date.today()):
+                pet.weight = weight_data.weight
+            
+            await self.db.commit()
+            await self.db.refresh(weight_record)
+            
+            return self._weight_to_response(weight_record)
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error adding weight record: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to add weight record"
+            )
+    
+    async def get_weight_history(self, user_id: str, pet_id: str) -> WeightHistoryResponse:
+        """Get weight history with trend analysis for a pet."""
+        try:
+            # Verify pet ownership
+            pet = await self._get_pet_with_ownership_check(user_id, pet_id)
+            
+            # Get all weight records
+            result = await self.db.execute(
+                select(PetWeightRecord)
+                .where(
+                    PetWeightRecord.pet_id == uuid.UUID(pet_id),
+                    PetWeightRecord.is_active == True
+                )
+                .order_by(PetWeightRecord.measurement_date.desc())
+            )
+            records = result.scalars().all()
+            
+            # Convert to response objects
+            weight_records = [self._weight_to_response(record) for record in records]
+            
+            # Calculate trend analysis
+            total_records = len(weight_records)
+            weight_change = None
+            weight_change_percent = None
+            trend = None
+            
+            if total_records >= 2:
+                # Get oldest and newest records
+                oldest = weight_records[-1]
+                newest = weight_records[0]
+                
+                weight_change = newest.weight - oldest.weight
+                weight_change_percent = (weight_change / oldest.weight) * 100
+                
+                # Determine trend
+                if abs(weight_change_percent) < 2:
+                    trend = "stable"
+                elif weight_change > 0:
+                    trend = "increasing"
+                else:
+                    trend = "decreasing"
+            
+            return WeightHistoryResponse(
+                pet_id=pet_id,
+                current_weight=pet.weight,
+                weight_unit="lbs",
+                records=weight_records,
+                total_records=total_records,
+                weight_change=weight_change,
+                weight_change_percent=weight_change_percent,
+                trend=trend
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting weight history: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve weight history"
+            )
+    
+    def _weight_to_response(self, weight_record: PetWeightRecord) -> WeightRecordResponse:
+        """Convert PetWeightRecord to response schema."""
+        return WeightRecordResponse(
+            id=str(weight_record.id),
+            pet_id=str(weight_record.pet_id),
+            weight=weight_record.weight,
+            weight_unit=weight_record.weight_unit,
+            measurement_date=weight_record.measurement_date,
+            source=weight_record.source,
+            notes=weight_record.notes,
+            created_at=weight_record.created_at,
+            updated_at=weight_record.updated_at
         )

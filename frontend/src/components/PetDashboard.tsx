@@ -15,6 +15,10 @@ import { GroomingTips } from "@/components/GroomingTips";
 import { VetBooking } from "@/components/VetBooking";
 import { EmergencyTriage } from "@/components/EmergencyTriage";
 import { EditPetDialog } from "@/components/EditPetDialog";
+import { MilestoneTracker } from "@/components/milestones/MilestoneTracker";
+import { ProfileSharing } from "@/components/ProfileSharing";
+import { useVoiceControl } from "@/hooks/useVoiceControl";
+import { useVoiceIntegration } from "@/services/voice/voiceIntegration";
 
 const avatarMap: Record<string, string> = {
   dog: dogAvatar,
@@ -56,9 +60,44 @@ export const PetDashboard = ({ pet, onUpdate, onDelete }: PetDashboardProps) => 
   const navigate = useNavigate();
   const careNotes = generateCareNotes(pet);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState("health");
+
+  // Initialize voice integration with navigation
+  useVoiceIntegration();
+
+  // Enable voice control for this dashboard
+  const { notifyManualAction } = useVoiceControl({
+    componentId: 'pet-dashboard',
+    petId: pet.id,
+    onVoiceCommand: (intent, result) => {
+      // Handle voice commands that affect the dashboard
+      if (result.success && intent.target === 'tab') {
+        // Voice command to switch tabs
+        const tabName = intent.parameters.tabName;
+        if (tabName) {
+          setActiveTab(tabName);
+        }
+      }
+    },
+  });
 
   const handlePetUpdate = (updatedPet: Pet) => {
     onUpdate?.(updatedPet);
+    // Notify voice system of manual update
+    notifyManualAction('update-pet', { petId: pet.id, updates: updatedPet });
+  };
+
+  const scrollToHealthTab = () => {
+    setActiveTab("health");
+    // Notify voice system of manual navigation
+    notifyManualAction('navigate-tab', { tab: 'health' });
+    // Scroll to tabs section
+    setTimeout(() => {
+      const tabsElement = document.querySelector('[role="tablist"]');
+      if (tabsElement) {
+        tabsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
 
@@ -147,7 +186,7 @@ export const PetDashboard = ({ pet, onUpdate, onDelete }: PetDashboardProps) => 
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(`/health-records/${pet.id}`)}
+              onClick={scrollToHealthTab}
               className="bg-accent text-accent-foreground rounded-card p-4 md:p-6 flex items-center gap-3 shadow-forest w-full max-w-[200px]"
             >
               <div className="w-12 h-12 rounded-full bg-accent-foreground/20 flex items-center justify-center flex-shrink-0">
@@ -215,13 +254,15 @@ export const PetDashboard = ({ pet, onUpdate, onDelete }: PetDashboardProps) => 
         </div>
 
         {/* Tabbed Features */}
-        <Tabs defaultValue="health" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-secondary rounded-card p-2">
             <TabsTrigger value="health" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Health</TabsTrigger>
             <TabsTrigger value="meds" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Medications</TabsTrigger>
             <TabsTrigger value="feeding" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Feeding</TabsTrigger>
             <TabsTrigger value="grooming" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Grooming</TabsTrigger>
             <TabsTrigger value="vet" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Vet</TabsTrigger>
+            <TabsTrigger value="milestones" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Milestones</TabsTrigger>
+            <TabsTrigger value="sharing" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-primary/10">Share Profile</TabsTrigger>
             <TabsTrigger value="emergency" className="rounded-pill text-label text-[10px] flex-1 min-w-[100px] data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground transition-all duration-300 hover:bg-destructive/10">Emergency</TabsTrigger>
           </TabsList>
 
@@ -239,6 +280,20 @@ export const PetDashboard = ({ pet, onUpdate, onDelete }: PetDashboardProps) => 
           </TabsContent>
           <TabsContent value="vet" className="mt-6">
             <VetBooking pet={pet} onUpdate={handlePetUpdate} />
+          </TabsContent>
+          <TabsContent value="milestones" className="mt-6">
+            <MilestoneTracker 
+              petId={pet.id} 
+              petName={pet.name} 
+              petPhoto={pet.avatar || ""} 
+            />
+          </TabsContent>
+          <TabsContent value="sharing" className="mt-6">
+            <ProfileSharing 
+              petId={pet.id} 
+              userId={localStorage.getItem("userId") || "default-user"}
+              petName={pet.name}
+            />
           </TabsContent>
           <TabsContent value="emergency" className="mt-6">
             <EmergencyTriage pet={pet} />

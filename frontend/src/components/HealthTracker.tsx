@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { HealthLogHistory } from "@/components/HealthLogHistory";
+import { useVoiceControl } from "@/hooks/useVoiceControl";
 
 const logTypeConfig: Record<string, { icon: any; color: string; label: string }> = {
   symptom: { icon: Thermometer, color: "bg-destructive/10 text-destructive", label: "Symptom" },
@@ -30,10 +32,24 @@ interface HealthTrackerProps {
 export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [showFullRecords, setShowFullRecords] = useState(false);
   const [newLog, setNewLog] = useState<Partial<HealthLog>>({
     type: "symptom",
     severity: "low",
     date: new Date().toISOString().split("T")[0],
+  });
+
+  // Enable voice control for health tracker
+  const { notifyManualAction } = useVoiceControl({
+    componentId: 'health-tracker',
+    petId: pet.id,
+    onVoiceCommand: (intent, result) => {
+      // Handle voice commands for health tracking
+      if (result.success && intent.action === 'log_data') {
+        // Voice command added a health log
+        // UI will update automatically through onUpdate callback
+      }
+    },
   });
 
   const handleAdd = () => {
@@ -47,6 +63,8 @@ export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
       severity: newLog.severity as HealthLog["severity"],
     };
     onUpdate({ ...pet, healthLogs: [log, ...pet.healthLogs] });
+    // Notify voice system of manual action
+    notifyManualAction('add-health-log', { log });
     setNewLog({ type: "symptom", severity: "low", date: new Date().toISOString().split("T")[0] });
     setOpen(false);
   };
@@ -57,6 +75,7 @@ export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="space-y-4"
+      data-tour="health-tracker"
     >
       {/* Health Score Card */}
       <motion.div
@@ -77,19 +96,36 @@ export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
         </motion.div>
       </motion.div>
 
+      {/* Health Log History from Backend */}
+      <div className="mt-4">
+        <div className="flex items-center justify-end mb-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowFullRecords(!showFullRecords)}
+            className="px-4 py-2 rounded-pill bg-accent/20 text-accent-foreground flex items-center gap-2 text-sm font-body"
+          >
+            <FileText className="w-4 h-4" />
+            {showFullRecords ? "Hide Full Records" : "View Full Records"}
+          </motion.button>
+        </div>
+        
+        {showFullRecords && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <HealthLogHistory petId={parseInt(pet.id)} petName={pet.name} petHealthLogs={pet.healthLogs || []} />
+          </motion.div>
+        )}
+      </div>
+
       {/* Log Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-label text-muted-foreground">Health Logs</h3>
         <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate(`/health-records/${pet.id}`)}
-            className="px-4 py-2 rounded-pill bg-accent/20 text-accent-foreground flex items-center gap-2 text-sm font-body"
-          >
-            <FileText className="w-4 h-4" />
-            View Full Records
-          </motion.button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <motion.button
@@ -140,6 +176,7 @@ export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
         {(pet.healthLogs || []).length === 0 && (
           <p className="text-sm text-muted-foreground font-body text-center py-8">No health logs yet. Start tracking! 📋</p>
         )}
+        <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
         {(pet.healthLogs || []).map((log, index) => {
           const config = logTypeConfig[log.type];
           const Icon = config.icon;
@@ -175,6 +212,7 @@ export const HealthTracker = ({ pet, onUpdate }: HealthTrackerProps) => {
             </motion.div>
           );
         })}
+        </div>
       </div>
     </motion.div>
   );

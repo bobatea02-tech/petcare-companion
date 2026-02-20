@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Activity, Syringe, TrendingUp, Download, Plus, Archive, ArchiveRestore } from "lucide-react";
 import { toast } from "sonner";
+import { AddHealthRecordDialog } from "@/components/AddHealthRecordDialog";
+import { AddVaccinationDialog } from "@/components/AddVaccinationDialog";
+import { AddWeightDialog } from "@/components/AddWeightDialog";
+import { AddMedicalHistoryDialog } from "@/components/AddMedicalHistoryDialog";
 
 interface Pet {
   id: string;
@@ -48,14 +52,32 @@ interface Vaccination {
   days_until_expiration?: number;
 }
 
+interface MedicalHistoryEntry {
+  id: string;
+  entry_date: string;
+  entry_type: string;
+  description: string;
+  veterinarian?: string;
+  clinic_name?: string;
+  diagnosis?: string;
+  treatment_plan?: string;
+  follow_up_required?: boolean;
+  follow_up_date?: string;
+}
+
 export default function HealthRecords() {
   const { petId } = useParams<{ petId: string }>();
   const [pet, setPet] = useState<Pet | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
+  const [medicalHistory, setMedicalHistory] = useState<MedicalHistoryEntry[]>([]);
   const [weightHistory, setWeightHistory] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [addRecordOpen, setAddRecordOpen] = useState(false);
+  const [addVaccinationOpen, setAddVaccinationOpen] = useState(false);
+  const [addWeightOpen, setAddWeightOpen] = useState(false);
+  const [addMedicalHistoryOpen, setAddMedicalHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (petId) {
@@ -114,36 +136,59 @@ export default function HealthRecords() {
           }
         });
         setVaccinations(allVaccinations);
-
-        // Extract weight history from records and pet profile
-        const weights: WeightEntry[] = [];
-        
-        // Add current weight from pet profile
-        if (petData?.weight) {
-          weights.push({
-            date: new Date().toISOString(),
-            weight: petData.weight,
-            source: "Current Profile"
-          });
-        }
-
-        // Extract weights from health records (checkups, etc.)
-        recordsData.records?.forEach((record: HealthRecord) => {
-          if (record.weight) {
-            weights.push({
-              date: record.record_date,
-              weight: record.weight,
-              source: record.record_type.replace("_", " ")
-            });
-          }
-        });
-
-        setWeightHistory(weights.sort((a, b) => 
-          new Date(b.date).getTime() - new Date(a.date).getTime()
-        ));
       } else {
         console.error("Failed to fetch health records:", recordsResponse.status);
         // Don't show error for health records, just continue with empty data
+      }
+
+      // Fetch weight history from new API
+      const weightHistoryResponse = await fetch(
+        `http://localhost:8000/api/v1/pets/${petId}/weight-history`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      if (weightHistoryResponse.ok) {
+        const weightHistoryData = await weightHistoryResponse.json();
+        console.log("Weight history data:", weightHistoryData);
+        
+        // Convert weight records to the format expected by the UI
+        const weights: WeightEntry[] = weightHistoryData.records.map((record: any) => ({
+          date: record.measurement_date,
+          weight: record.weight,
+          source: record.source || "Weight Record"
+        }));
+        
+        setWeightHistory(weights);
+      }
+
+      // Fetch vaccinations from pets API
+      const vaccinationsResponse = await fetch(
+        `http://localhost:8000/api/v1/pets/${petId}/vaccinations`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      if (vaccinationsResponse.ok) {
+        const vaccinationsData = await vaccinationsResponse.json();
+        console.log("Vaccinations data:", vaccinationsData);
+        setVaccinations(vaccinationsData);
+      }
+
+      // Fetch medical history from pets API
+      const medicalHistoryResponse = await fetch(
+        `http://localhost:8000/api/v1/pets/${petId}/medical-history`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      if (medicalHistoryResponse.ok) {
+        const medicalHistoryData = await medicalHistoryResponse.json();
+        console.log("Medical history data:", medicalHistoryData);
+        setMedicalHistory(medicalHistoryData);
       }
     } catch (error) {
       console.error("Error fetching health data:", error);
@@ -272,7 +317,7 @@ export default function HealthRecords() {
             <Download className="mr-2 h-4 w-4" />
             Export PDF
           </Button>
-          <Button>
+          <Button onClick={() => setAddRecordOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Record
           </Button>
@@ -369,73 +414,67 @@ export default function HealthRecords() {
 
         {/* Medical History Tab */}
         <TabsContent value="medical" className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setAddMedicalHistoryOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Medical History
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Medical History</CardTitle>
               <CardDescription>Complete medical records and visits</CardDescription>
             </CardHeader>
             <CardContent>
-              {healthRecords.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No medical records yet</p>
+              {medicalHistory.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No medical history yet</p>
               ) : (
                 <div className="space-y-4">
-                  {healthRecords
-                    .filter((r) => r.record_type !== "vaccination")
-                    .sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())
-                    .map((record) => (
-                      <Card key={record.id}>
+                  {medicalHistory
+                    .sort((a, b) => new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime())
+                    .map((entry) => (
+                      <Card key={entry.id}>
                         <CardHeader>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 flex-1">
-                              <Badge className={getRecordTypeColor(record.record_type)}>
-                                {record.record_type.replace("_", " ")}
+                              <Badge className={getRecordTypeColor(entry.entry_type)}>
+                                {entry.entry_type.replace("_", " ")}
                               </Badge>
-                              <CardTitle className="text-lg">{record.description}</CardTitle>
-                              {record.is_archived && (
-                                <Badge variant="outline" className="text-xs">
-                                  Archived
-                                </Badge>
-                              )}
+                              <CardTitle className="text-lg">{entry.description}</CardTitle>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(record.record_date).toLocaleDateString()}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleArchiveRecord(record.id, record.is_archived || false)}
-                                title={record.is_archived ? "Restore to current" : "Move to history"}
-                              >
-                                {record.is_archived ? (
-                                  <ArchiveRestore className="h-4 w-4" />
-                                ) : (
-                                  <Archive className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(entry.entry_date).toLocaleDateString()}
+                            </span>
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                          {record.diagnosis && (
+                          {entry.diagnosis && (
                             <div>
                               <p className="text-sm font-medium">Diagnosis:</p>
-                              <p className="text-sm text-muted-foreground">{record.diagnosis}</p>
+                              <p className="text-sm text-muted-foreground">{entry.diagnosis}</p>
                             </div>
                           )}
-                          {record.treatment_plan && (
+                          {entry.treatment_plan && (
                             <div>
                               <p className="text-sm font-medium">Treatment Plan:</p>
-                              <p className="text-sm text-muted-foreground">{record.treatment_plan}</p>
+                              <p className="text-sm text-muted-foreground">{entry.treatment_plan}</p>
                             </div>
                           )}
-                          {record.veterinarian && (
+                          {entry.veterinarian && (
                             <div>
                               <p className="text-sm font-medium">Veterinarian:</p>
                               <p className="text-sm text-muted-foreground">
-                                {record.veterinarian}
-                                {record.clinic_name && ` - ${record.clinic_name}`}
+                                {entry.veterinarian}
+                                {entry.clinic_name && ` - ${entry.clinic_name}`}
                               </p>
+                            </div>
+                          )}
+                          {entry.follow_up_required && (
+                            <div>
+                              <Badge variant="outline" className="bg-yellow-50">
+                                Follow-up Required
+                                {entry.follow_up_date && ` - ${new Date(entry.follow_up_date).toLocaleDateString()}`}
+                              </Badge>
                             </div>
                           )}
                         </CardContent>
@@ -447,8 +486,14 @@ export default function HealthRecords() {
           </Card>
         </TabsContent>
 
-        {/* Vaccinations Tab */}
+        {/* Vaccinations Tab - Keep old implementation but add button */}
         <TabsContent value="vaccinations" className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setAddVaccinationOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Vaccination
+            </Button>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>Vaccination Records</CardTitle>
@@ -518,7 +563,7 @@ export default function HealthRecords() {
           </Card>
         </TabsContent>
 
-        {/* Weight Tracking Tab */}
+        {/* Weight Tracking Tab - Keep old implementation but update buttons */}
         <TabsContent value="weight" className="space-y-4">
           <Card>
             <CardHeader>
@@ -573,7 +618,7 @@ export default function HealthRecords() {
                   )}
 
                   {/* Add Weight Button */}
-                  <Button className="w-full" variant="outline">
+                  <Button className="w-full" variant="outline" onClick={() => setAddWeightOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add Weight Entry
                   </Button>
@@ -584,7 +629,7 @@ export default function HealthRecords() {
                   <p className="text-muted-foreground mb-4">
                     No weight data recorded yet
                   </p>
-                  <Button>
+                  <Button onClick={() => setAddWeightOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add First Weight Entry
                   </Button>
@@ -594,6 +639,32 @@ export default function HealthRecords() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <AddHealthRecordDialog
+        open={addRecordOpen}
+        onOpenChange={setAddRecordOpen}
+        petId={petId!}
+        onSuccess={fetchHealthData}
+      />
+      <AddVaccinationDialog
+        open={addVaccinationOpen}
+        onOpenChange={setAddVaccinationOpen}
+        petId={petId!}
+        onSuccess={fetchHealthData}
+      />
+      <AddWeightDialog
+        open={addWeightOpen}
+        onOpenChange={setAddWeightOpen}
+        petId={petId!}
+        onSuccess={fetchHealthData}
+      />
+      <AddMedicalHistoryDialog
+        open={addMedicalHistoryOpen}
+        onOpenChange={setAddMedicalHistoryOpen}
+        petId={petId!}
+        onSuccess={fetchHealthData}
+      />
     </div>
   );
 }

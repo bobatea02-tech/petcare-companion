@@ -3,6 +3,7 @@ Enhanced AI Service with RAG (Retrieval Augmented Generation).
 Integrates knowledge base for better, more accurate responses.
 """
 
+import json
 import logging
 from typing import Optional, Dict, Any, List
 import google.generativeai as genai

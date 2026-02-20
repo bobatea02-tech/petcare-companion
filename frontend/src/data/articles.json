@@ -1,0 +1,57 @@
+[
+  {
+    "id": "article-001",
+    "title": "Complete Guide to Monsoon Pet Care in India",
+    "summary": "Essential tips for keeping your pets healthy and safe during India's monsoon season, including hygiene, health concerns, and preventive measures.",
+    "content": "The monsoon season in India brings unique challenges for pet owners. High humidity and constant moisture create ideal conditions for fungal infections, skin problems, and parasites.\n\n**Key Monsoon Concerns:**\n1. Fungal infections on paws and skin\n2. Increased tick and flea activity\n3. Leptospirosis risk from contaminated water\n4. Reduced outdoor exercise opportunities\n\n**Prevention Tips:**\n- Dry your pet thoroughly after walks\n- Use antifungal powder on paws\n- Keep bedding dry and clean\n- Maintain regular grooming\n- Ensure vaccinations are up to date\n\n**Indoor Activities:**\nSince outdoor time is limited, engage your pet with indoor games, puzzle toys, and training sessions to prevent boredom and maintain fitness.",
+    "category": "health",
+    "petTypes": ["dog", "cat"],
+    "tags": ["monsoon", "seasonal", "india", "prevention", "hygiene"],
+    "readTime": 5,
+    "publishedAt": "2024-01-15T00:00:00Z"
+  },
+  {
+    "id": "article-002",
+    "title": "Nutrition Guide for Indian Dog Breeds",
+    "summary": "Comprehensive nutrition advice tailored for Indian dog breeds including Indian Pariah, Rajapalayam, and Mudhol Hound.",
+    "content": "Indian dog breeds have evolved to thrive in local conditions and often have different nutritional needs compared to foreign breeds.\n\n**Indian Pariah Dog:**\nHighly adaptable and can thrive on a simple diet of rice, dal, vegetables, and meat. Avoid overfeeding commercial food.\n\n**Rajapalayam:**\nActive breed requiring high-protein diet. Include lean meats, eggs, and fish. Supplement with vegetables and grains.\n\n**Mudhol Hound:**\nAthletic breed needing balanced nutrition. Focus on quality protein sources and complex carbohydrates for sustained energy.\n\n**General Guidelines:**\n- Use locally available ingredients\n- Avoid excessive spices\n- Ensure fresh water availability\n- Adjust portions based on activity level\n- Include seasonal fruits and vegetables",
+    "category": "nutrition",
+    "petTypes": ["dog"],
+    "tags": ["nutrition", "indian-breeds", "diet", "health"],
+    "readTime": 7,
+    "publishedAt": "2024-01-10T00:00:00Z"
+  },
+  {
+    "id": "article-003",
+    "title": "Summer Heat Management for Pets",
+    "summary": "Protect your pets from heat stress during Indian summers with these essential cooling strategies and safety tips.",
+    "content": "Indian summers can be brutal, with temperatures soaring above 40°C in many regions. Pets are vulnerable to heatstroke and dehydration.\n\n**Warning Signs of Heat Stress:**\n- Excessive panting\n- Drooling\n- Lethargy\n- Vomiting\n- Collapse\n\n**Cooling Strategies:**\n1. Provide multiple water stations\n2. Use cooling mats or wet towels\n3. Limit outdoor activities to early morning/late evening\n4. Never leave pets in parked vehicles\n5. Offer frozen treats (pet-safe)\n\n**Grooming Tips:**\nRegular brushing removes dead fur and improves air circulation. However, don't shave double-coated breeds as their coat provides insulation.\n\n**Emergency Response:**\nIf you suspect heatstroke, move pet to cool area, offer water, apply cool (not cold) water to body, and contact vet immediately.",
+    "category": "health",
+    "petTypes": ["dog", "cat", "bird"],
+    "tags": ["summer", "heat", "safety", "india", "emergency"],
+    "readTime": 6,
+    "publishedAt": "2024-02-01T00:00:00Z"
+  },
+  {
+    "id": "article-004",
+    "title": "Cat Training Fundamentals",
+    "summary": "Learn effective techniques for training your cat, from litter box basics to advanced tricks and behavioral management.",
+    "content": "Contrary to popular belief, cats are highly trainable. They respond well to positive reinforcement and consistency.\n\n**Litter Box Training:**\nMost kittens learn from their mother, but if needed, place kitten in box after meals and naps. Keep box clean and accessible.\n\n**Basic Commands:**\n- Come: Use treats and consistent calling\n- Sit: Lure with treat above head\n- High-five: Tap paw gently, reward when lifted\n\n**Behavioral Management:**\nRedirect unwanted behaviors rather than punishing. Provide appropriate outlets for natural behaviors like scratching and climbing.\n\n**Clicker Training:**\nHighly effective for cats. Click when desired behavior occurs, immediately follow with treat. Cats quickly learn the association.\n\n**Patience is Key:**\nCats learn at their own pace. Keep sessions short (5-10 minutes) and always end on a positive note.",
+    "category": "training",
+    "petTypes": ["cat"],
+    "tags": ["training", "behavior", "cats", "positive-reinforcement"],
+    "readTime": 8,
+    "publishedAt": "2024-01-20T00:00:00Z"
+  },
+  {
+    "id": "article-005",
+    "title": "Common Diseases in Indian Climate",
+    "summary": "Understanding and preventing common pet diseases prevalent in India's tropical climate, including symptoms and treatment options.",
+    "content": "India's tropical climate creates conditions favorable for various pet diseases. Early recognition and prevention are crucial.\n\n**Tick-Borne Diseases:**\n- Ehrlichiosis: Fever, lethargy, bleeding disorders\n- Babesiosis: Anemia, weakness, dark urine\nPrevention: Regular tick checks, preventive medications\n\n**Leptospirosis:**\nSpread through contaminated water during monsoons. Symptoms include fever, vomiting, jaundice. Vaccination available and recommended.\n\n**Parvovirus:**\nHighly contagious, affects puppies. Causes severe vomiting and diarrhea. Vaccination is essential.\n\n**Skin Infections:**\nFungal and bacterial infections common in humid conditions. Regular grooming and keeping pet dry helps prevent.\n\n**Heartworm:**\nTransmitted by mosquitoes. Monthly preventive medication recommended in endemic areas.\n\n**Preventive Care:**\n- Keep vaccinations current\n- Use parasite prevention year-round\n- Maintain good hygiene\n- Regular vet check-ups",
+    "category": "health",
+    "petTypes": ["dog", "cat"],
+    "tags": ["diseases", "india", "prevention", "health", "climate"],
+    "readTime": 10,
+    "publishedAt": "2024-01-25T00:00:00Z"
+  }
+]

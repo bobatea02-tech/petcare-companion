@@ -14,7 +14,7 @@ from app.database.models import (
     BlogPost, BlogComment, BlogLike, CommentLike, 
     UserFollow, User
 )
-from app.core.auth import get_current_user
+from app.core.dependencies import get_current_user
 from pydantic import BaseModel, Field
 
 
@@ -98,7 +98,7 @@ async def get_posts(
     limit: int = Query(20, ge=1, le=100),
     pet_type: Optional[str] = None,
     search: Optional[str] = None,
-    sort_by: str = Query("recent", regex="^(recent|popular|trending)$"),
+    sort_by: str = Query("recent", pattern="^(recent|popular|trending)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

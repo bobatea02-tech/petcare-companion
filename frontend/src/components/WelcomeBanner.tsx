@@ -22,9 +22,9 @@ export const WelcomeBanner = () => {
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="bg-gradient-to-br from-primary/10 via-secondary/60 to-accent/20 backdrop-blur-sm rounded-card p-6 md:p-8 mb-8 border border-accent/20"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center gap-3">
         <span className="text-4xl">{emoji}</span>
-        <div>
+        <div className="text-center">
           <h2 className="font-display text-3xl md:text-4xl text-foreground leading-none">
             Welcome, {userName}
           </h2>

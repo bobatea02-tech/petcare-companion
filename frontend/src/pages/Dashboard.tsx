@@ -1,25 +1,59 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NoiseOverlay } from "@/components/NoiseOverlay";
 import { PetCard } from "@/components/PetCard";
 import { PetDashboard } from "@/components/PetDashboard";
 import { AddPetDialog } from "@/components/AddPetDialog";
+import { UpcomingAppointments } from "@/components/UpcomingAppointments";
+import { TodaysReminders } from "@/components/TodaysReminders";
+import { ReminderCalendar } from "@/components/ReminderCalendar";
+import { JojoVoiceButton } from "@/components/JojoVoiceButton";
 import { Pet, defaultPets } from "@/lib/petData";
-import { LogOut } from "lucide-react";
+import { LogOut, Bell, AlertCircle } from "lucide-react";
 import { usePetReminders } from "@/hooks/usePetReminders";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import petpalLogo from "@/assets/petpal-logo.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WelcomeBanner } from "@/components/WelcomeBanner";
 import { BottomNav } from "@/components/BottomNav";
 import { toast } from "sonner";
+import { HealthScoreDashboard } from "@/components/HealthScoreDashboard";
+import { DailyTip } from "@/components/DailyTip";
+import { ExpenseTracker } from "@/components/ExpenseTracker";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { EmergencySOS } from "@/components/emergency/EmergencySOS";
+import { Button } from "@/components/ui/button";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// Lazy load GuidedTour component for code splitting
+const GuidedTour = lazy(() => import("@/components/tour").then(m => ({ default: m.GuidedTour })));
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
   const [loadingPets, setLoadingPets] = useState(true);
   const [selectedPetId, setSelectedPetId] = useState<string>("");
   const [showCelebration, setShowCelebration] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showEmergencySOS, setShowEmergencySOS] = useState(false);
+
+  // Check if user should see the tour (first-time user or tour requested)
+  useEffect(() => {
+    const tourCompleted = localStorage.getItem("tour_completed");
+    const startTour = localStorage.getItem("start_tour");
+    
+    if (startTour === "true" && !tourCompleted) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        setIsTourActive(true);
+      }, 1000);
+      localStorage.removeItem("start_tour");
+    }
+  }, []);
 
   // Fetch pets from backend on mount
   useEffect(() => {
@@ -139,8 +173,20 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("petpal_user");
-    navigate("/login");
+    logout();
+    navigate("/");
+  };
+
+  const handleTourComplete = () => {
+    setIsTourActive(false);
+    localStorage.setItem("tour_completed", "true");
+    toast.success("Tour completed! You're all set to use PetPal.");
+  };
+
+  const handleTourSkip = () => {
+    setIsTourActive(false);
+    localStorage.setItem("tour_completed", "true");
+    toast.info("Tour skipped. You can always explore features on your own!");
   };
 
   return (
@@ -209,6 +255,15 @@ const Dashboard = () => {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowNotifications(true)}
+              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors relative"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4 text-foreground" />
+            </motion.button>
+            <motion.button
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLogout}
@@ -222,6 +277,79 @@ const Dashboard = () => {
 
       <main className="container max-w-6xl mx-auto px-4 py-8">
         <WelcomeBanner />
+
+        {/* Dashboard Widgets Grid */}
+        {!loadingPets && pets.length > 0 && selectedPet && (
+          <motion.section
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {/* Health Score Widget */}
+            <div className="lg:col-span-2">
+              <ErrorBoundary featureName="Health Score Dashboard">
+                <HealthScoreDashboard petId={selectedPet.id} />
+              </ErrorBoundary>
+            </div>
+
+            {/* Daily Tip Widget */}
+            <div>
+              <ErrorBoundary featureName="Daily Tip">
+                <DailyTip petType={selectedPet.type} breed={selectedPet.breed} />
+              </ErrorBoundary>
+            </div>
+
+            {/* Expense Summary Widget */}
+            {selectedPet && (
+              <div className="lg:col-span-2">
+                <ErrorBoundary featureName="Expense Tracker">
+                  <ExpenseTracker 
+                    petId={selectedPet.id} 
+                    userId={localStorage.getItem("userId") || "default-user"} 
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {/* Multi-Pet Comparison Link */}
+            {pets.length > 1 && (
+              <motion.div
+                whileHover={{ scale: 1.02, y: -4 }}
+                transition={{ duration: 0.3 }}
+                className="bg-gradient-to-br from-primary to-accent rounded-card p-6 shadow-forest cursor-pointer"
+                onClick={() => navigate("/multi-pet-comparison")}
+              >
+                <h3 className="font-display text-xl text-primary-foreground mb-2">
+                  Compare Your Pets
+                </h3>
+                <p className="text-sm text-primary-foreground/80 mb-4">
+                  View health metrics across all {pets.length} pets
+                </p>
+                <Button variant="secondary" size="sm">
+                  View Comparison
+                </Button>
+              </motion.div>
+            )}
+          </motion.section>
+        )}
+
+        {/* Today's Reminders */}
+        {!loadingPets && pets.length > 0 && (
+          <TodaysReminders 
+            pets={pets} 
+            onViewCalendar={() => setCalendarOpen(true)} 
+          />
+        )}
+
+        {/* Reminder Calendar */}
+        {!loadingPets && pets.length > 0 && (
+          <ReminderCalendar 
+            pets={pets} 
+            isOpen={calendarOpen}
+            onToggle={setCalendarOpen}
+          />
+        )}
 
         {/* Pet Profiles Row */}
         <motion.section
@@ -276,6 +404,63 @@ const Dashboard = () => {
         )}
       </main>
       <BottomNav />
+      
+      {/* JoJo Voice Button */}
+      {!loadingPets && pets.length > 0 && <JojoVoiceButton pets={pets} />}
+      
+      {/* Floating Emergency SOS Button */}
+      {!loadingPets && pets.length > 0 && selectedPet && (
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setShowEmergencySOS(true)}
+          className="fixed bottom-48 left-6 z-50 w-16 h-16 rounded-full bg-destructive text-destructive-foreground shadow-lg flex items-center justify-center"
+          title="Emergency SOS"
+        >
+          <AlertCircle className="w-8 h-8" />
+        </motion.button>
+      )}
+
+      {/* Emergency SOS Modal */}
+      {showEmergencySOS && selectedPet && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+          >
+            <ErrorBoundary featureName="Emergency SOS">
+              <EmergencySOS 
+                petId={selectedPet.id} 
+                onClose={() => setShowEmergencySOS(false)} 
+              />
+            </ErrorBoundary>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Notification Center */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm" onClick={() => setShowNotifications(false)}>
+          <div className="fixed right-0 top-0 h-full w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <ErrorBoundary featureName="Notification Center">
+              <NotificationCenter />
+            </ErrorBoundary>
+          </div>
+        </div>
+      )}
+      
+      {/* Guided Tour - Lazy loaded */}
+      {isTourActive && (
+        <Suspense fallback={null}>
+          <GuidedTour
+            isActive={isTourActive}
+            onComplete={handleTourComplete}
+            onSkip={handleTourSkip}
+          />
+        </Suspense>
+      )}
     </motion.div>
   );
 };

@@ -2,12 +2,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NoiseOverlay } from "@/components/NoiseOverlay";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import petpalLogo from "@/assets/petpal-logo.png";
 
 const floatingEmojis = ["🐕", "🐱", "🐦", "🐰", "🐟", "🐾", "❤️", "🌿"];
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,8 +19,17 @@ const Login = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    localStorage.setItem("petpal_user", name || "Pet Parent");
-    setTimeout(() => navigate("/dashboard"), 1200);
+    
+    // Generate mock credentials
+    const mockToken = "mock-token-" + Date.now();
+    const mockUserId = "mock-user-" + Date.now();
+    
+    // Use AuthContext to manage authentication state
+    login(mockToken, mockUserId, email, name || "Pet Parent");
+    
+    // Navigate to onboarding for new users (register) or dashboard for existing users (login)
+    const destination = isRegister ? "/onboarding" : "/dashboard";
+    setTimeout(() => navigate(destination), 1200);
   };
 
   return (

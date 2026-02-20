@@ -1,0 +1,112 @@
+[
+  {
+    "id": "tip-001",
+    "title": "Hydration is Key",
+    "content": "Ensure your pet has access to fresh, clean water at all times. Change the water at least twice daily, especially during hot weather.",
+    "category": "health",
+    "petTypes": ["dog", "cat", "bird", "fish"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": true,
+    "priority": 1
+  },
+  {
+    "id": "tip-002",
+    "title": "Monsoon Paw Care",
+    "content": "During monsoon season, dry your pet's paws thoroughly after walks to prevent fungal infections. Use a clean towel and check between toes.",
+    "category": "grooming",
+    "petTypes": ["dog", "cat"],
+    "breeds": [],
+    "seasonal": "monsoon",
+    "indiaSpecific": true,
+    "priority": 2
+  },
+  {
+    "id": "tip-003",
+    "title": "Summer Heat Protection",
+    "content": "Avoid walking your dog during peak afternoon hours (12 PM - 4 PM). Hot pavements can burn paw pads. Walk early morning or late evening.",
+    "category": "health",
+    "petTypes": ["dog"],
+    "breeds": [],
+    "seasonal": "summer",
+    "indiaSpecific": true,
+    "priority": 1
+  },
+  {
+    "id": "tip-004",
+    "title": "Tick Prevention in India",
+    "content": "Use vet-approved tick prevention treatments regularly. Check your pet daily for ticks, especially after outdoor activities. Common in Indian climate.",
+    "category": "health",
+    "petTypes": ["dog", "cat"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": true,
+    "priority": 1
+  },
+  {
+    "id": "tip-005",
+    "title": "Balanced Diet for Indian Breeds",
+    "content": "Indian breeds like Indian Pariah dogs thrive on a mix of rice, dal, vegetables, and meat. Avoid excessive commercial treats.",
+    "category": "nutrition",
+    "petTypes": ["dog"],
+    "breeds": ["Indian Pariah", "Rajapalayam", "Mudhol Hound"],
+    "seasonal": null,
+    "indiaSpecific": true,
+    "priority": 2
+  },
+  {
+    "id": "tip-006",
+    "title": "Cat Grooming Basics",
+    "content": "Brush your cat regularly to reduce hairballs and matting. Long-haired breeds need daily brushing, short-haired cats weekly.",
+    "category": "grooming",
+    "petTypes": ["cat"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": false,
+    "priority": 2
+  },
+  {
+    "id": "tip-007",
+    "title": "Bird Cage Placement",
+    "content": "Place bird cages away from direct sunlight, drafts, and kitchen fumes. Ensure good ventilation and natural light.",
+    "category": "health",
+    "petTypes": ["bird"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": false,
+    "priority": 1
+  },
+  {
+    "id": "tip-008",
+    "title": "Fish Tank Temperature",
+    "content": "Maintain consistent water temperature for tropical fish (24-27°C). Use a reliable heater and thermometer.",
+    "category": "health",
+    "petTypes": ["fish"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": false,
+    "priority": 1
+  },
+  {
+    "id": "tip-009",
+    "title": "Winter Care for Pets",
+    "content": "Provide warm bedding and shelter during winter months. Short-haired breeds may need sweaters for outdoor activities.",
+    "category": "health",
+    "petTypes": ["dog", "cat"],
+    "breeds": [],
+    "seasonal": "winter",
+    "indiaSpecific": true,
+    "priority": 2
+  },
+  {
+    "id": "tip-010",
+    "title": "Dental Health",
+    "content": "Brush your pet's teeth 2-3 times weekly with pet-safe toothpaste. Dental treats can help but don't replace brushing.",
+    "category": "health",
+    "petTypes": ["dog", "cat"],
+    "breeds": [],
+    "seasonal": null,
+    "indiaSpecific": false,
+    "priority": 2
+  }
+]

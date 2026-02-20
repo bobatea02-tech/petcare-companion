@@ -219,10 +219,13 @@ async def auth_middleware(request: Request, call_next):
         "/openapi.json",
         "/api/v1/auth/register",
         "/api/v1/auth/login",
-        "/api/v1/auth/refresh"
+        "/api/v1/auth/refresh",
+        "/api/v1/vets/search/nearby",
+        "/api/v1/vets/search/place",
+        "/api/v1/vets/autocomplete"
     ]
     
-    if request.url.path in public_paths or request.url.path.startswith("/static"):
+    if request.url.path in public_paths or request.url.path.startswith("/static") or request.url.path.startswith("/api/v1/vets"):
         return await call_next(request)
     
     # Check for Authorization header

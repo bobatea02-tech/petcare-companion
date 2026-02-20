@@ -118,7 +118,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = language;
-      recognition.maxAlternatives = 1;
+      recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -152,6 +152,10 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
         setTranscript(currentTranscript);
 
         if (finalTranscript) {
+          // Clear timeout on successful transcription
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
           onTranscript?.(finalTranscript);
         }
       };
@@ -167,18 +171,24 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
             errorMsg = 'Microphone not found. Please check your device.';
             break;
           case 'not-allowed':
-            errorMsg = 'Microphone permission denied. Please allow microphone access.';
+            errorMsg = 'Microphone permission denied. Please allow microphone access in your browser settings.';
             break;
           case 'network':
             errorMsg = 'Network error occurred. Please check your connection.';
             break;
           case 'aborted':
-            errorMsg = 'Speech recognition was aborted.';
+            // Don't show error for user-initiated abort
+            errorMsg = '';
+            break;
+          case 'service-not-allowed':
+            errorMsg = 'Speech recognition service is not available. Please check your browser settings.';
             break;
         }
 
-        setError(errorMsg);
-        onError?.(errorMsg);
+        if (errorMsg) {
+          setError(errorMsg);
+          onError?.(errorMsg);
+        }
         setIsListening(false);
         onListeningChange?.(false);
 
@@ -199,7 +209,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       recognitionRef.current = recognition;
       recognition.start();
     } catch (err) {
-      const errorMsg = 'Failed to start speech recognition.';
+      const errorMsg = 'Failed to start speech recognition. Please ensure microphone permissions are granted.';
       setError(errorMsg);
       onError?.(errorMsg);
     }
