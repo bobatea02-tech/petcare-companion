@@ -2,6 +2,12 @@
 Main FastAPI application entry point for PawPal Voice Pet Care Assistant.
 """
 
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -18,9 +24,6 @@ from app.api.ai import router as ai_router
 from app.api.voice import router as voice_router
 from app.api.medications import router as medications_router
 from app.api.workflows import router as workflows_router
-from app.api.maps import router as maps_router
-from app.api.sms import router as sms_router
-from app.api.email import router as email_router
 from app.api.files import router as files_router
 from app.api.health_records import router as health_records_router
 from app.api.appointments import router as appointments_router
@@ -31,8 +34,7 @@ from app.api.health import router as health_router
 from app.api.community import router as community_router
 from app.api.jojo import router as jojo_router
 from app.api.vet_search import router as vet_search_router
-# Temporarily disabled due to import errors
-# from app.api.history import router as history_router
+from app.api.history import router as history_router
 from app.core.middleware import (
     limiter, 
     security_middleware, 
@@ -41,6 +43,7 @@ from app.core.middleware import (
     LOGIN_RATE_LIMIT,
     GENERAL_RATE_LIMIT
 )
+from app.middleware.rate_limiter import rate_limit_middleware, rate_limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -61,9 +64,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
+    # Start rate limiter cleanup task
+    rate_limiter.start_cleanup_task()
+    
     yield
     
     # Shutdown
+    rate_limiter.stop_cleanup_task()
     await cache_manager.close()
     await engine.dispose()
 
@@ -82,6 +89,7 @@ app.add_exception_handler(429, rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # Add custom middleware
+app.middleware("http")(rate_limit_middleware)  # Voice API rate limiting
 app.middleware("http")(security_middleware)
 app.middleware("http")(auth_middleware)
 
@@ -102,9 +110,6 @@ app.include_router(ai_router, prefix="/api/v1")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(medications_router, prefix="/api/v1")
 app.include_router(workflows_router, prefix="/api/v1")
-app.include_router(maps_router, prefix="/api/v1")
-app.include_router(sms_router, prefix="/api/v1")
-app.include_router(email_router, prefix="/api/v1")
 app.include_router(files_router, prefix="/api/v1")
 app.include_router(health_records_router, prefix="/api/v1")
 app.include_router(appointments_router, prefix="/api/v1")
@@ -114,8 +119,7 @@ app.include_router(monitoring_router, prefix="/api/v1")
 app.include_router(community_router, prefix="/api/v1")
 app.include_router(jojo_router, prefix="/api/v1")
 app.include_router(vet_search_router, prefix="/api/v1")
-# Temporarily disabled due to import errors
-# app.include_router(history_router, prefix="/api/v1")
+app.include_router(history_router, prefix="/api/v1")
 
 
 @app.get("/")

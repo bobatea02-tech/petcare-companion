@@ -45,9 +45,7 @@ export const GlobalVoiceAssistant: React.FC<GlobalVoiceAssistantProps> = ({
 
   // Log page changes for context awareness
   useEffect(() => {
-    if (shouldShow) {
-      console.log('Voice Assistant: Page changed to', location.pathname);
-    }
+    // Page change tracking for voice assistant visibility
   }, [location.pathname, shouldShow]);
 
   if (!shouldShow) {

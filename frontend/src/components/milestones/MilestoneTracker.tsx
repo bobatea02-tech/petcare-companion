@@ -97,8 +97,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
       setMilestones(updatedMilestones);
 
       if (newMilestones.length > 0) {
-        // Show success message
-        console.log(`Detected ${newMilestones.length} new milestone(s)!`);
+        // Milestones detected successfully
       }
     } catch (error) {
       console.error('Error checking for milestones:', error);
@@ -240,7 +239,6 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
                   petName={petName}
                   petPhoto={petPhoto}
                   onShare={(platform) => {
-                    console.log(`Shared milestone ${milestone.id} on ${platform}`);
                     // Refresh milestones to update shared status
                     milestoneDetector.getMilestonesSorted(petId).then(setMilestones);
                   }}

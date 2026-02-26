@@ -2,6 +2,8 @@
 JoJo AI Assistant API endpoints.
 """
 
+import logging
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -19,6 +21,8 @@ from app.schemas.jojo import (
 )
 from app.core.dependencies import get_current_active_user
 from app.database.models import User
+
+logger = logging.getLogger(__name__)
 
 
 # Create router for JoJo endpoints
@@ -57,7 +61,20 @@ async def chat_with_jojo(
     - Ask for pet name if needed for specific questions
     """
     try:
-        jojo_service = JoJoService()
+        # Initialize services with error handling
+        try:
+            jojo_service = JoJoService()
+        except Exception as init_error:
+            # Log the full error for debugging
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"JoJo service initialization failed: {str(init_error)}\n{error_details}")
+            
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"JoJo service initialization failed: {str(init_error)}. Please ensure GEMINI_API_KEY is configured and restart the backend server."
+            )
+        
         jojo_actions = JoJoActionsService()
         
         conversation_id = None
@@ -117,6 +134,9 @@ async def chat_with_jojo(
             pet_name=request.pet_name
         )
         
+        # CRITICAL: Log that Jojo responded
+        logger.info(f"✅ Jojo response received: {result.get('response', '')[:100]}...")
+        
         # If action was taken, override response with action confirmation
         if action_result["action_taken"]:
             result["response"] = action_result["response_text"]
@@ -125,17 +145,21 @@ async def chat_with_jojo(
             result["action_details"] = action_result["action_details"]
             result["speak_response"] = action_result.get("speak_response", True)
             result["needs_clarification"] = action_result.get("needs_clarification", False)
+            logger.info("✅ Jojo action taken and response confirmed")
         elif action_result.get("needs_clarification"):
             # If clarification is needed, use that response
             result["response"] = action_result["response_text"]
             result["action_taken"] = False
             result["speak_response"] = action_result.get("speak_response", True)
             result["needs_clarification"] = True
+            logger.info("✅ Jojo clarification needed")
         else:
             result["action_taken"] = False
             result["speak_response"] = True
             result["needs_clarification"] = False
+            logger.info("✅ Jojo response displayed")
         
+        logger.info("✅ Jojo chat endpoint completed successfully")
         return JoJoChatResponse(**result)
         
     except Exception as e:
@@ -314,11 +338,18 @@ async def jojo_health_check():
     """
     try:
         jojo_service = JoJoService()
+        if not jojo_service.api_configured:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="JoJo service unavailable: GEMINI_API_KEY not configured"
+            )
         return {
             "status": "healthy",
             "service": "JoJo AI Assistant",
             "message": "JoJo is ready to help! 🐾"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -113,6 +113,14 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
 
     try {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        const errorMsg = 'Speech recognition is not available. Please use Chrome, Edge, or Safari.';
+        setError(errorMsg);
+        onError?.(errorMsg);
+        return;
+      }
+      
       const recognition = new SpeechRecognition();
 
       recognition.continuous = false;
@@ -121,6 +129,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
       recognition.onstart = () => {
+        console.log('🎤 Voice recognition started');
         setIsListening(true);
         setTranscript('');
         setError(null);
@@ -128,6 +137,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
 
         // Set timeout
         timeoutRef.current = setTimeout(() => {
+          console.log('⏱️ Voice recognition timeout');
           recognition.stop();
           const errorMsg = 'Listening timeout - no speech detected for 1 minute.';
           setError(errorMsg);
@@ -136,11 +146,15 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       };
 
       recognition.onresult = (event: any) => {
+        console.log('🎯 Voice recognition result received');
         let interimTranscript = '';
         let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcriptPiece = event.results[i][0].transcript;
+          const confidence = event.results[i][0].confidence;
+          console.log(`  Result ${i}: "${transcriptPiece}" (confidence: ${confidence})`);
+          
           if (event.results[i].isFinal) {
             finalTranscript += transcriptPiece;
           } else {
@@ -152,6 +166,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
         setTranscript(currentTranscript);
 
         if (finalTranscript) {
+          console.log('✅ Final transcript:', finalTranscript);
           // Clear timeout on successful transcription
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
@@ -161,27 +176,28 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       };
 
       recognition.onerror = (event: any) => {
+        console.error('❌ Voice recognition error:', event.error);
         let errorMsg = 'Speech recognition error occurred.';
         
         switch (event.error) {
           case 'no-speech':
-            errorMsg = 'No speech detected. Please try again.';
+            errorMsg = 'No speech detected. Please try again and speak clearly.';
             break;
           case 'audio-capture':
-            errorMsg = 'Microphone not found. Please check your device.';
+            errorMsg = 'Microphone not found. Please check your device and browser permissions.';
             break;
           case 'not-allowed':
-            errorMsg = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+            errorMsg = 'Microphone permission denied. Please click the microphone icon in your browser address bar and allow access.';
             break;
           case 'network':
-            errorMsg = 'Network error occurred. Please check your connection.';
+            errorMsg = 'Network error occurred. Voice recognition requires an internet connection.';
             break;
           case 'aborted':
             // Don't show error for user-initiated abort
             errorMsg = '';
             break;
           case 'service-not-allowed':
-            errorMsg = 'Speech recognition service is not available. Please check your browser settings.';
+            errorMsg = 'Speech recognition service is not available. Please check your browser settings or try Chrome/Edge.';
             break;
         }
 
@@ -198,6 +214,7 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       };
 
       recognition.onend = () => {
+        console.log('🛑 Voice recognition ended');
         setIsListening(false);
         onListeningChange?.(false);
 
@@ -207,9 +224,22 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
       };
 
       recognitionRef.current = recognition;
-      recognition.start();
+      
+      // Request microphone permission explicitly
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => {
+          console.log('✅ Microphone permission granted');
+          recognition.start();
+        })
+        .catch((err) => {
+          console.error('❌ Microphone permission error:', err);
+          const errorMsg = 'Microphone access denied. Please allow microphone access in your browser settings and refresh the page.';
+          setError(errorMsg);
+          onError?.(errorMsg);
+        });
     } catch (err) {
-      const errorMsg = 'Failed to start speech recognition. Please ensure microphone permissions are granted.';
+      console.error('❌ Failed to initialize speech recognition:', err);
+      const errorMsg = 'Failed to start speech recognition. Please ensure microphone permissions are granted and you are using a supported browser (Chrome, Edge, or Safari).';
       setError(errorMsg);
       onError?.(errorMsg);
     }
@@ -235,7 +265,17 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
   }, [isListening, startListening, stopListening]);
 
   const speak = useCallback((text: string) => {
-    if (!isSupported || isMuted) return;
+    if (!isSupported) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+
+    if (isMuted) {
+      console.log('🔇 Speech muted, skipping TTS');
+      return;
+    }
+
+    console.log('🔊 Starting speech synthesis:', text.substring(0, 50) + '...');
 
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
@@ -253,22 +293,44 @@ export const useVoiceAssistant = (options: VoiceAssistantOptions = {}): VoiceAss
     const bestVoice = getBestSoftVoice();
     if (bestVoice) {
       utterance.voice = bestVoice;
+      console.log('🎙️ Using voice:', bestVoice.name);
+    } else {
+      console.warn('⚠️ No preferred voice found, using default');
     }
 
     utterance.onstart = () => {
+      console.log('🗣️ Speech started');
       setIsSpeaking(true);
       onSpeakingChange?.(true);
     };
 
     utterance.onend = () => {
+      console.log('✅ Speech completed');
       setIsSpeaking(false);
       onSpeakingChange?.(false);
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      console.error('❌ Speech synthesis error:', event.error);
+      // Log more details about the error
+      console.error('Error details:', {
+        error: event.error,
+        charIndex: event.charIndex,
+        elapsedTime: event.elapsedTime,
+        name: event.name
+      });
       setIsSpeaking(false);
       onSpeakingChange?.(false);
+      
+      // Try to recover from certain errors
+      if (event.error === 'interrupted' || event.error === 'canceled') {
+        console.log('Speech was interrupted, this is normal');
+      } else {
+        // For other errors, notify the user
+        const errorMsg = `Speech synthesis failed: ${event.error}`;
+        setError(errorMsg);
+        onError?.(errorMsg);
+      }
     };
 
     utteranceRef.current = utterance;

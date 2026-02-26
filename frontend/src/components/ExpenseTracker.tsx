@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { expenseService, Expense, ExpenseCategory } from '@/services/ExpenseService';
 import { ExpenseForm } from '@/components/ExpenseForm';
 import { ExpenseReport } from '@/components/ExpenseReport';
 import { BudgetAlert } from '@/components/BudgetAlert';
 import { ExpenseTrackerSkeleton, EmptyState, ErrorState } from '@/components/LoadingStates';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Filter, Receipt, Trash2, Edit } from 'lucide-react';
+import { Download, Filter, Receipt, Trash2, Edit, ChevronDown } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ petId, userId })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   const [currentMonthSpending, setCurrentMonthSpending] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     loadExpenses();
@@ -196,160 +198,185 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ petId, userId })
   }
 
   return (
-    <div className="space-y-6 p-4" role="region" aria-label="Expense Tracker">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-anton text-forest-800">Expense Tracker</h1>
-          <p className="text-sage-600 font-inter">Manage your pet care expenses</p>
-        </div>
-        <Button
-          onClick={handleExportCSV}
-          variant="outline"
-          className="border-sage-200 text-forest-800 font-inter"
-          aria-label="Export expenses to CSV"
-        >
-          <Download className="w-4 h-4 mr-2" aria-hidden="true" />
-          Export CSV
-        </Button>
-      </div>
-
-      {/* Budget Alert */}
-      <BudgetAlert petId={petId} userId={userId} currentSpending={currentMonthSpending} />
-
-      {/* Tabs */}
-      <Tabs defaultValue="expenses" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-sage-100">
-          <TabsTrigger value="expenses" className="font-inter">
-            Expenses
-          </TabsTrigger>
-          <TabsTrigger value="add" className="font-inter">
-            Add New
-          </TabsTrigger>
-          <TabsTrigger value="report" className="font-inter">
-            Report
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Expenses List Tab */}
-        <TabsContent value="expenses" className="space-y-4">
-          {/* Filters */}
-          <Card className="bg-cream-50 border-sage-200">
-            <CardHeader>
-              <CardTitle className="font-anton text-forest-800 flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                Filters
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Category Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-inter text-forest-800">Category</label>
-                  <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger className="bg-white border-sage-200">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="food">Food</SelectItem>
-                      <SelectItem value="vet">Vet Visits</SelectItem>
-                      <SelectItem value="grooming">Grooming</SelectItem>
-                      <SelectItem value="toys">Toys</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Search */}
-                <div className="space-y-2">
-                  <label className="text-sm font-inter text-forest-800">Search</label>
-                  <Input
-                    type="text"
-                    placeholder="Search description or notes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-white border-sage-200"
-                  />
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-4">
+      <Card className="bg-cream-50 border-sage-200">
+        <CollapsibleTrigger className="w-full">
+          <CardHeader className="cursor-pointer hover:bg-sage-50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Receipt className="w-6 h-6 text-forest-800" />
+                <div className="text-left">
+                  <CardTitle className="text-2xl font-anton text-forest-800">
+                    Expense Tracker
+                  </CardTitle>
+                  <CardDescription className="font-inter text-sage-600">
+                    Manage your pet care expenses
+                  </CardDescription>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <ChevronDown
+                className={`w-5 h-5 text-forest-800 transition-transform duration-200 ${
+                  isOpen ? 'transform rotate-180' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
 
-          {/* Expenses List */}
-          <Card className="bg-cream-50 border-sage-200">
-            <CardHeader>
-              <CardTitle className="font-anton text-forest-800 flex items-center gap-2">
-                <Receipt className="w-5 h-5" />
-                Expense History
-              </CardTitle>
-              <CardDescription className="font-inter text-sage-600">
-                {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8 text-sage-600 font-inter">
-                  Loading expenses...
-                </div>
-              ) : filteredExpenses.length === 0 ? (
-                <div className="text-center py-8 text-sage-600 font-inter">
-                  No expenses found. Add your first expense to get started!
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredExpenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="flex items-start justify-between p-4 bg-white rounded-lg border border-sage-100 hover:border-sage-300 transition-colors"
-                    >
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge className={CATEGORY_COLORS[expense.category]}>
-                            {CATEGORY_LABELS[expense.category]}
-                          </Badge>
-                          <span className="text-xs text-sage-600 font-inter">
-                            {new Date(expense.date).toLocaleDateString('en-IN')}
-                          </span>
-                        </div>
-                        <p className="font-medium text-forest-800 font-inter">
-                          {expense.description}
-                        </p>
-                        {expense.notes && (
-                          <p className="text-sm text-sage-600 font-inter">{expense.notes}</p>
-                        )}
+        <CollapsibleContent>
+          <CardContent className="space-y-6 pt-0">
+            {/* Export Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleExportCSV}
+                variant="outline"
+                className="border-sage-200 text-forest-800 font-inter"
+                aria-label="Export expenses to CSV"
+              >
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                Export CSV
+              </Button>
+            </div>
+
+            {/* Budget Alert */}
+            <BudgetAlert petId={petId} userId={userId} currentSpending={currentMonthSpending} />
+
+            {/* Tabs */}
+            <Tabs defaultValue="expenses" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3 bg-sage-100">
+                <TabsTrigger value="expenses" className="font-inter">
+                  Expenses
+                </TabsTrigger>
+                <TabsTrigger value="add" className="font-inter">
+                  Add New
+                </TabsTrigger>
+                <TabsTrigger value="report" className="font-inter">
+                  Report
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Expenses List Tab */}
+              <TabsContent value="expenses" className="space-y-4">
+                {/* Filters */}
+                <Card className="bg-cream-50 border-sage-200">
+                  <CardHeader>
+                    <CardTitle className="font-anton text-forest-800 flex items-center gap-2">
+                      <Filter className="w-5 h-5" />
+                      Filters
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Category Filter */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-inter text-forest-800">Category</label>
+                        <Select value={filterCategory} onValueChange={setFilterCategory}>
+                          <SelectTrigger className="bg-white border-sage-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            <SelectItem value="food">Food</SelectItem>
+                            <SelectItem value="vet">Vet Visits</SelectItem>
+                            <SelectItem value="grooming">Grooming</SelectItem>
+                            <SelectItem value="toys">Toys</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <p className="text-lg font-bold text-forest-800 font-inter">
-                          ₹{expense.amount.toFixed(2)}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => confirmDelete(expense.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
+                      {/* Search */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-inter text-forest-800">Search</label>
+                        <Input
+                          type="text"
+                          placeholder="Search description or notes..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="bg-white border-sage-200"
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  </CardContent>
+                </Card>
 
-        {/* Add Expense Tab */}
-        <TabsContent value="add">
-          <ExpenseForm petId={petId} userId={userId} onExpenseAdded={loadExpenses} />
-        </TabsContent>
+                {/* Expenses List */}
+                <Card className="bg-cream-50 border-sage-200">
+                  <CardHeader>
+                    <CardTitle className="font-anton text-forest-800 flex items-center gap-2">
+                      <Receipt className="w-5 h-5" />
+                      Expense History
+                    </CardTitle>
+                    <CardDescription className="font-inter text-sage-600">
+                      {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? 's' : ''} found
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="text-center py-8 text-sage-600 font-inter">
+                        Loading expenses...
+                      </div>
+                    ) : filteredExpenses.length === 0 ? (
+                      <div className="text-center py-8 text-sage-600 font-inter">
+                        No expenses found. Add your first expense to get started!
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredExpenses.map((expense) => (
+                          <div
+                            key={expense.id}
+                            className="flex items-start justify-between p-4 bg-white rounded-lg border border-sage-100 hover:border-sage-300 transition-colors"
+                          >
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Badge className={CATEGORY_COLORS[expense.category]}>
+                                  {CATEGORY_LABELS[expense.category]}
+                                </Badge>
+                                <span className="text-xs text-sage-600 font-inter">
+                                  {new Date(expense.date).toLocaleDateString('en-IN')}
+                                </span>
+                              </div>
+                              <p className="font-medium text-forest-800 font-inter">
+                                {expense.description}
+                              </p>
+                              {expense.notes && (
+                                <p className="text-sm text-sage-600 font-inter">{expense.notes}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="text-lg font-bold text-forest-800 font-inter">
+                                ₹{expense.amount.toFixed(2)}
+                              </p>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => confirmDelete(expense.id)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        {/* Report Tab */}
-        <TabsContent value="report">
-          <ExpenseReport petId={petId} />
-        </TabsContent>
-      </Tabs>
+              {/* Add Expense Tab */}
+              <TabsContent value="add">
+                <ExpenseForm petId={petId} userId={userId} onExpenseAdded={loadExpenses} />
+              </TabsContent>
+
+              {/* Report Tab */}
+              <TabsContent value="report">
+                <ExpenseReport petId={petId} />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -371,6 +398,6 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ petId, userId })
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Collapsible>
   );
 };

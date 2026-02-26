@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +32,8 @@ import { LowConfidenceWarning } from './LowConfidenceWarning';
 import { AnimatedAvatar } from './AnimatedAvatar';
 import { EnhancedWaveform } from './EnhancedWaveform';
 import { StateTransitionWrapper, PulseAnimation } from './StateTransitions';
+import { MicrophoneSelector } from './MicrophoneSelector';
+import { VoicePrivacyConsent } from './VoicePrivacyConsent';
 import { toast } from 'sonner';
 
 // Import voice services
@@ -101,6 +104,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [avatarState, setAvatarState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [hasVoiceConsent, setHasVoiceConsent] = useState(false);
+  const [showConsentDialog, setShowConsentDialog] = useState(true);
 
   // Service refs
   const wakeWordDetectorRef = useRef<WakeWordDetector | null>(null);
@@ -298,10 +303,38 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   };
 
   /**
+   * Handle voice privacy consent
+   */
+  const handleVoiceConsent = (accepted: boolean) => {
+    setHasVoiceConsent(accepted);
+    setShowConsentDialog(false);
+
+    if (!accepted) {
+      toast.info('Voice Features Disabled', {
+        description: 'You can still use text input to interact with PawPal.'
+      });
+    } else {
+      toast.success('Voice Features Enabled', {
+        description: 'You can now use voice commands with JoJo.'
+      });
+    }
+  };
+
+
+  /**
    * Start listening for voice input
    */
   const startListening = useCallback(() => {
     if (isListening) return;
+
+    // Check for voice consent first
+    if (!hasVoiceConsent) {
+      setShowConsentDialog(true);
+      toast.warning('Privacy Consent Required', {
+        description: 'Please accept the privacy policy to use voice features.'
+      });
+      return;
+    }
 
     setIsListening(true);
     setTranscript('');
@@ -312,11 +345,31 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     
     voiceRecognitionRef.current?.startRecognition();
     
-    // Get audio stream for waveform visualization
-    navigator.mediaDevices.getUserMedia({ audio: true })
+    // Get audio stream for waveform visualization using selected microphone
+    const savedDevice = localStorage.getItem('preferred_microphone');
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+    
+    // Add device ID if saved
+    if (savedDevice && savedDevice !== 'default') {
+      audioConstraints.deviceId = { exact: savedDevice };
+    }
+    
+    navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
       .then(stream => setAudioStream(stream))
-      .catch(err => console.error('Error getting audio stream:', err));
-  }, [isListening]);
+      .catch(err => {
+        console.error('Error getting audio stream:', err);
+        // Fallback to default device if selected device fails
+        if (savedDevice) {
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => setAudioStream(stream))
+            .catch(err => console.error('Error getting default audio stream:', err));
+        }
+      });
+  }, [isListening, hasVoiceConsent]);
 
   /**
    * Stop listening
@@ -520,6 +573,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   return (
     <>
+      {/* Voice Privacy Consent Dialog */}
+      <VoicePrivacyConsent
+        onConsent={(accepted) => {
+          setHasVoiceConsent(accepted);
+          if (!accepted) {
+            toast.info('Voice Features Disabled', {
+              description: 'You can still use text input for all features.'
+            });
+          }
+        }}
+      />
+
       {/* Floating JoJo Button */}
       <motion.button
         onClick={toggleExpanded}
@@ -577,6 +642,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         onDisable={handleInactivityDisable}
       />
 
+      {/* Voice Privacy Consent Dialog */}
+      {showConsentDialog && (
+        <VoicePrivacyConsent onConsent={handleVoiceConsent} />
+      )}
+
       {/* Voice Assistant Panel */}
       <AnimatePresence>
         {isExpanded && (
@@ -631,12 +701,41 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mb-4 p-4 bg-muted rounded-lg"
+                  className="mb-4 p-4 bg-muted rounded-lg space-y-4"
                 >
                   <HandsFreeModeToggle
                     isEnabled={handsFreeMode}
                     onToggle={toggleHandsFreeMode}
                   />
+                  
+                  <Separator />
+                  
+                  <MicrophoneSelector
+                    onDeviceChange={(deviceId) => {
+                      // Voice recognition will automatically use the selected device
+                      // from localStorage on next startListening() call
+                    }}
+                  />
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Privacy</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        // Open privacy policy in new tab
+                        window.open('/VOICE_PRIVACY_POLICY.md', '_blank');
+                      }}
+                    >
+                      View Voice Privacy Policy
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Learn how we handle your voice data
+                    </p>
+                  </div>
                 </motion.div>
               )}
 

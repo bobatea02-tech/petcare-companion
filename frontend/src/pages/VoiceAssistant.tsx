@@ -43,6 +43,19 @@ const VoiceAssistant = () => {
   const pets: Pet[] = JSON.parse(localStorage.getItem("petpal_pets") || JSON.stringify(defaultPets));
   const pet = pets.find(p => p.id === petId) || pets[0];
 
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to use the voice assistant.",
+        variant: "destructive",
+      });
+      navigate('/login');
+    }
+  }, [navigate, toast]);
+
   // Voice assistant hook
   const voice = useVoiceAssistant({
     onTranscript: (text) => {
@@ -192,6 +205,27 @@ const VoiceAssistant = () => {
   const sendMessage = async (text: string) => {
     if (!text.trim() || !pet) return;
 
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to use the voice assistant. Redirecting to login...",
+        variant: "destructive",
+      });
+      
+      // Speak the error message
+      if (!voice.isMuted) {
+        voice.speak("Please log in to use the voice assistant. I'm redirecting you to the login page.");
+      }
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      return;
+    }
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -209,11 +243,35 @@ const VoiceAssistant = () => {
       const response = await api.jojoChat(text, conversationId || undefined, pet.name);
 
       if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error,
-          variant: "destructive",
-        });
+        // Check if it's an authentication error
+        if (response.error.includes('Unauthorized') || response.error.includes('401') || response.error.includes('log in')) {
+          toast({
+            title: "Authentication Required",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          });
+          
+          // Speak the error
+          if (!voice.isMuted) {
+            voice.speak("Your session has expired. Please log in again.");
+          }
+          
+          // Redirect to login
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
+        } else {
+          toast({
+            title: "Error",
+            description: response.error,
+            variant: "destructive",
+          });
+          
+          // Speak the error
+          if (!voice.isMuted) {
+            voice.speak(`Sorry, there was an error: ${response.error}`);
+          }
+        }
         setIsTyping(false);
         setVoiceState('idle');
         return;
@@ -248,27 +306,19 @@ const VoiceAssistant = () => {
           });
         }
         
-        // Automatically speak the response if not muted and speak_response is true
+        // Automatically speak the response - ALWAYS speak unless explicitly muted
         const shouldSpeak = response.data.speak_response !== false; // Default to true
-        console.log('Voice Response Debug:', {
-          speak_response: response.data.speak_response,
-          needs_clarification: response.data.needs_clarification,
-          isMuted: voice.isMuted,
-          shouldSpeak,
-          response: response.data.response
-        });
         
+        // CRITICAL: Always speak the response unless user has explicitly muted
         if (!voice.isMuted && shouldSpeak) {
-          console.log('Speaking response:', response.data.response);
+          setVoiceState('speaking');
           voice.speak(response.data.response);
         } else {
-          console.log('Not speaking - muted:', voice.isMuted, 'shouldSpeak:', shouldSpeak);
           setVoiceState('idle');
         }
         
         // Show special indicator for clarification questions
         if (response.data.needs_clarification) {
-          console.log('Clarification needed - showing toast');
           toast({
             title: "Need More Info",
             description: "JoJo needs clarification. Please respond to the question.",

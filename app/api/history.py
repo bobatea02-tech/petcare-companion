@@ -83,7 +83,7 @@ async def get_health_logs(
     search: Optional[str] = Query(None, description="Search in notes"),
     limit: int = Query(100, ge=1, le=200),
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get health logs for a specific pet with filtering options.
@@ -111,7 +111,7 @@ async def get_health_logs(
 async def get_health_summary(
     pet_id: int,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get a comprehensive health summary for a specific pet.
@@ -134,7 +134,7 @@ async def get_upcoming_appointments(
     pet_id: int,
     days_ahead: int = Query(30, ge=1, le=365, description="Number of days to look ahead"),
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get upcoming appointments for a specific pet.

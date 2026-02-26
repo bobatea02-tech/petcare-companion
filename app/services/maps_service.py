@@ -1,8 +1,8 @@
 """
-Google Maps API integration service for emergency vet location finding.
+Geolocation service for emergency vet location finding.
 
-This service handles Google Maps API integration for finding emergency
-veterinary clinics with geolocation and proximity search capabilities.
+This service provides emergency veterinary clinic location data
+using static fallback data (OpenStreetMap integration available separately).
 """
 
 import asyncio
@@ -81,21 +81,17 @@ class EmergencyVetLocation:
 
 
 class MapsService:
-    """Service for Google Maps API integration and geolocation services."""
+    """Service for geolocation services with fallback to static data."""
     
     def __init__(self):
-        """Initialize Maps service with Google Maps API configuration."""
-        self.api_key = settings.GOOGLE_MAPS_API_KEY
+        """Initialize Maps service without Google Maps API (using OpenStreetMap/static data)."""
+        self.api_key = None
         self.geocoder = None
-        
-        if self.api_key:
-            self.geocoder = GoogleV3(api_key=self.api_key)
-        else:
-            logger.warning("Google Maps API key not configured")
+        logger.info("Maps service initialized with static data fallback (Google Maps not configured)")
     
     def is_available(self) -> bool:
-        """Check if Google Maps API is available."""
-        return self.api_key is not None
+        """Check if Maps service is available (always True with fallback data)."""
+        return True
     
     @retry(
         stop=stop_after_attempt(3),

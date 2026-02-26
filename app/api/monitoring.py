@@ -15,8 +15,6 @@ from app.core.graceful_degradation import get_system_health
 from app.core.dependencies import get_current_user
 from app.services.ai_service import ai_service
 from app.services.maps_service import maps_service
-from app.services.sms_service import sms_service
-from app.services.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,18 +47,12 @@ async def detailed_health_check() -> Dict[str, Any]:
     # Check AI service
     ai_health = await ai_service.health_check()
     
-    # Check SMS service
-    sms_health = await sms_service.health_check()
-    
-    # Check Email service
-    email_health = await email_service.health_check()
-    
     # Check Maps service
     maps_available = maps_service.is_available()
     maps_health = {
         "service": "maps",
         "status": "healthy" if maps_available else "unavailable",
-        "google_maps_configured": maps_available
+        "configured": maps_available
     }
     
     # Get system health from degradation manager
@@ -70,8 +62,6 @@ async def detailed_health_check() -> Dict[str, Any]:
         "overall_status": system_health["overall_status"],
         "services": {
             "ai": ai_health,
-            "sms": sms_health,
-            "email": email_health,
             "maps": maps_health
         },
         "system_health": system_health

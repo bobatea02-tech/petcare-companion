@@ -5,6 +5,7 @@ JoJo AI Assistant Service - Context-aware pet care chatbot with Gemini integrati
 import os
 import json
 import re
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID, uuid4
@@ -22,6 +23,8 @@ from app.database.models import (
     HealthRecord,
     User
 )
+
+logger = logging.getLogger(__name__)
 
 
 class JoJoService:
@@ -44,11 +47,21 @@ class JoJoService:
         """Initialize JoJo service with Gemini API."""
         self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
-        
-        genai.configure(api_key=self.api_key)
-        # Use gemini-2.5-flash-lite for better free tier availability
-        self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+            # Log the error but don't crash - allow graceful degradation
+            logger.error("GEMINI_API_KEY not found in environment variables")
+            self.model = None
+            self.api_configured = False
+        else:
+            try:
+                genai.configure(api_key=self.api_key)
+                # Use gemini-2.5-flash-lite for better free tier availability
+                self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+                self.api_configured = True
+                logger.info("JoJo service initialized successfully with Gemini API")
+            except Exception as e:
+                logger.error(f"Failed to configure Gemini API: {str(e)}")
+                self.model = None
+                self.api_configured = False
         
     async def chat(
         self,
@@ -71,21 +84,31 @@ class JoJoService:
         Returns:
             Dict with response, conversation_id, questions_remaining, pet_identified
         """
+        # Get or create conversation first (needed for conversation_id in all responses)
+        conversation = await self._get_or_create_conversation(
+            db, user_id, conversation_id
+        )
+        
+        # Check if API is configured
+        if not self.api_configured:
+            return {
+                "response": "I'm sorry, but I'm currently unable to respond. The AI service is not properly configured. Please contact support or check that the GEMINI_API_KEY is set in the environment variables.",
+                "conversation_id": str(conversation.id),
+                "questions_remaining": 0,
+                "pet_identified": False,
+                "api_error": True
+            }
+        
         # Check rate limit
         questions_remaining = await self._check_rate_limit(db, user_id)
         if questions_remaining <= 0:
             return {
                 "response": "You've reached your question limit for this hour. JoJo will be ready to help again soon! Your quota resets in a bit.",
-                "conversation_id": str(conversation_id) if conversation_id else None,
+                "conversation_id": str(conversation.id),
                 "questions_remaining": 0,
                 "pet_identified": False,
                 "quota_exceeded": True
             }
-        
-        # Get or create conversation
-        conversation = await self._get_or_create_conversation(
-            db, user_id, conversation_id
-        )
         
         # Extract pet name from message if not provided
         if not pet_name:
@@ -149,6 +172,12 @@ class JoJoService:
             pet_name=pet.name if pet else None,
             pet_info=pet_info
         )
+        
+        # CRITICAL: Validate that response was generated
+        if not response or response.startswith("Oops!"):
+            logger.error("❌ CRITICAL: Jojo failed to generate a proper response")
+        else:
+            logger.info("✅ Jojo response generated successfully")
         
         # Save messages to conversation
         await self._add_message_to_conversation(db, conversation, "user", message)
@@ -503,26 +532,58 @@ class JoJoService:
         pet_name: Optional[str] = None,
         pet_info: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Generate response using Gemini API."""
+        """Generate response using Gemini API with proper system prompt handling."""
         # Build system prompt
         system_prompt = self._build_system_prompt(health_context, pet_name, pet_info)
         
-        # Build full prompt with conversation history
-        prompt_parts = [system_prompt, "\n\nConversation History:"]
+        # Log that system prompt is being used
+        logger.info("✅ Jojo system prompt loaded")
         
+        # For Gemini API, we need to use a different approach
+        # Gemini doesn't have a native "system" role, so we prepend system instructions
+        # to the first user message and maintain conversation history
+        
+        # Build the full context with system prompt at the beginning
+        full_prompt_parts = [
+            system_prompt,
+            "\n" + "="*60,
+            "CONVERSATION HISTORY:",
+            "="*60 + "\n"
+        ]
+        
+        # Add conversation history in a clear format
         for msg in conversation_history:
             role = "User" if msg["role"] == "user" else "JoJo"
-            prompt_parts.append(f"{role}: {msg['content']}")
+            full_prompt_parts.append(f"{role}: {msg['content']}")
         
-        prompt_parts.append(f"\nUser: {message}")
-        prompt_parts.append("\nJoJo:")
+        # Add the current user message
+        full_prompt_parts.append(f"\nUser: {message}")
+        full_prompt_parts.append("\nJoJo (respond as JoJo, the pet care assistant):")
         
-        full_prompt = "\n".join(prompt_parts)
+        full_prompt = "\n".join(full_prompt_parts)
+        
+        # Log the request
+        logger.info("✅ Jojo request sent to Gemini API")
         
         try:
+            # Call Gemini API with the full prompt
             response = self.model.generate_content(full_prompt)
-            return response.text.strip()
+            
+            if not response or not response.text:
+                logger.error("❌ Jojo received empty response from Gemini API")
+                return f"Oops! JoJo had a little hiccup. Please try again in a moment. 🐾"
+            
+            response_text = response.text.strip()
+            
+            # Log successful response
+            logger.info("✅ Jojo response received from Gemini API")
+            logger.info(f"✅ Jojo response displayed: {response_text[:100]}...")
+            
+            return response_text
+            
         except Exception as e:
+            logger.error(f"❌ Jojo API error: {str(e)}")
+            logger.error(f"❌ System prompt was: {system_prompt[:200]}...")
             return f"Oops! JoJo had a little hiccup. Please try again in a moment. 🐾"
     
     def _build_system_prompt(
@@ -531,7 +592,7 @@ class JoJoService:
         pet_name: Optional[str] = None,
         pet_info: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Build system prompt for JoJo."""
+        """Build system prompt for JoJo - CRITICAL: This must be included in EVERY API call."""
         prompt = """You are JoJo, a friendly and knowledgeable pet care AI assistant. You help pet owners with:
 - General pet care advice
 - Health and wellness questions
@@ -539,20 +600,22 @@ class JoJoService:
 - Nutrition guidance
 - Emergency triage (when needed)
 
-IMPORTANT RULES:
+CRITICAL INSTRUCTIONS FOR JOJO:
+- ALWAYS respond as JoJo, the pet care assistant
+- ALWAYS be warm, friendly, and conversational
+- ALWAYS keep responses concise but helpful (2-4 sentences usually)
+- ALWAYS use emojis occasionally to be friendly 🐾
+- ALWAYS recommend seeing a vet for serious situations
 - ONLY answer questions related to pet care, health, behavior, nutrition, and training
-- If asked about non-pet topics (weather, news, general chitchat), politely decline: "I'm JoJo, and I specialize in pet care! Let me know if you have any questions about your furry friends."
-- Be warm, friendly, and conversational
-- Keep responses concise but helpful (2-4 sentences usually)
-- Use emojis occasionally to be friendly 🐾
-- If the situation sounds serious, always recommend seeing a vet
-- IMPORTANT: Provide breed-specific and species-specific advice when relevant
+- If asked about non-pet topics, politely decline: "I'm JoJo, and I specialize in pet care! Let me know if you have any questions about your furry friends."
+- NEVER break character as JoJo
+- NEVER forget you are JoJo, the pet care assistant
 
-Always be:
-- Warm and friendly
+PERSONALITY TRAITS:
+- Warm and empathetic
+- Knowledgeable about pets
 - Clear and concise
-- Empathetic to pet owner concerns
-- Honest about limitations (you're not a replacement for a vet)
+- Honest about limitations (not a replacement for a vet)
 - Proactive in suggesting vet visits for serious concerns
 - Knowledgeable about breed-specific traits and needs"""
         
@@ -572,8 +635,7 @@ Always be:
                 pet_details.append(f"Gender: {pet_info['gender']}")
             
             if pet_details:
-                prompt += f"\n\nPet Information:\n" + "\n".join(f"- {detail}" for detail in pet_details)
-                prompt += f"\n\nIMPORTANT: Use this pet information to provide breed-specific and age-appropriate advice. For example:"
+                prompt += f"\n\nPET INFORMATION (Use this to provide breed-specific advice):\n" + "\n".join(f"- {detail}" for detail in pet_details)
                 if pet_info.get('species') == 'dog' and pet_info.get('breed'):
                     prompt += f"\n- Consider {pet_info['breed']}-specific traits, health issues, and care needs"
                     prompt += f"\n- Adjust exercise, nutrition, and grooming advice for this breed"
@@ -584,6 +646,12 @@ Always be:
             prompt += f"\n\nYou are currently discussing {pet_name}."
         
         if health_context:
-            prompt += f"\n\nRelevant Health Information:\n{health_context}"
+            prompt += f"\n\nRELEVANT HEALTH INFORMATION:\n{health_context}"
         
+        # CRITICAL: Validate that system prompt is complete
+        if not prompt or len(prompt) < 100:
+            logger.error("❌ CRITICAL: System prompt is incomplete or missing!")
+            raise ValueError("System prompt validation failed - prompt is too short")
+        
+        logger.debug(f"✅ System prompt built successfully ({len(prompt)} chars)")
         return prompt

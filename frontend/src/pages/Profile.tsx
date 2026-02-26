@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Edit2, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Pet, defaultPets, petTypeEmoji } from "@/lib/petData";
-import petpalLogo from "@/assets/petpal-logo.png";
+import { Logo } from "@/components/Logo";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -38,8 +38,8 @@ const Profile = () => {
             <motion.button whileHover={{ scale: 1.1 }} onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="w-5 h-5 text-foreground" />
             </motion.button>
-            <img src={petpalLogo} alt="PetPal" className="w-8 h-8 rounded-full" />
-            <span className="font-display text-2xl text-foreground">Profile</span>
+            <Logo size="sm" showText={false} />
+            <span className="font-display text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-bold">Profile</span>
           </div>
           <ThemeToggle />
         </div>

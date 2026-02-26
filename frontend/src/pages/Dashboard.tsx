@@ -13,7 +13,7 @@ import { LogOut, Bell, AlertCircle } from "lucide-react";
 import { usePetReminders } from "@/hooks/usePetReminders";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import petpalLogo from "@/assets/petpal-logo.png";
+import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { WelcomeBanner } from "@/components/WelcomeBanner";
 import { BottomNav } from "@/components/BottomNav";
@@ -81,7 +81,6 @@ const Dashboard = () => {
 
       if (response.ok) {
         const backendPets = await response.json();
-        console.log("Fetched pets from backend:", backendPets);
         
         if (backendPets && backendPets.length > 0) {
           // Convert backend pet format to frontend format
@@ -151,12 +150,73 @@ const Dashboard = () => {
     localStorage.setItem("petpal_pets", JSON.stringify(newPets));
   };
 
-  const handleAddPet = (pet: Pet) => {
-    const newPets = [...pets, pet];
-    savePets(newPets);
-    setSelectedPetId(pet.id);
-    setShowCelebration(true);
-    setTimeout(() => setShowCelebration(false), 2500);
+  const handleAddPet = async (pet: Pet) => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      if (token) {
+        // If user is authenticated, save to backend
+        const today = new Date();
+        const birthYear = today.getFullYear() - pet.age;
+        const birthDate = new Date(birthYear, today.getMonth(), today.getDate());
+        const birthDateString = birthDate.toISOString().split('T')[0];
+        
+        const petData = {
+          name: pet.name,
+          species: pet.type,
+          breed: pet.breed,
+          birth_date: birthDateString,
+          weight: pet.weight,
+          gender: pet.gender,
+          allergies: pet.allergies?.join(", "),
+          behavioral_notes: pet.behavior,
+        };
+        
+        const response = await fetch("http://localhost:8000/api/v1/pets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(petData),
+        });
+        
+        if (response.ok) {
+          const backendPet = await response.json();
+          
+          // Refresh pets from backend to get the updated list
+          await fetchPetsFromBackend();
+          
+          // Select the newly added pet
+          setSelectedPetId(backendPet.id);
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 2500);
+          toast.success(`${pet.name} has been added to your pets!`);
+          return;
+        } else {
+          const error = await response.json();
+          console.error("Failed to create pet in backend:", error);
+          toast.error("Failed to save pet to server. Saving locally instead.");
+        }
+      }
+      
+      // Fallback to local storage if not authenticated or backend fails
+      const newPets = [...pets, pet];
+      savePets(newPets);
+      setSelectedPetId(pet.id);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2500);
+      toast.success(`${pet.name} has been added to your pets!`);
+    } catch (error) {
+      console.error("Error adding pet:", error);
+      // Fallback to local storage on error
+      const newPets = [...pets, pet];
+      savePets(newPets);
+      setSelectedPetId(pet.id);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2500);
+      toast.warning(`${pet.name} saved locally. Sync with server may be needed.`);
+    }
   };
 
   const handleUpdatePet = (updatedPet: Pet) => {
@@ -249,8 +309,7 @@ const Dashboard = () => {
             whileHover={{ scale: 1.05 }}
             className="flex items-center gap-3"
           >
-            <img src={petpalLogo} alt="PetPal" className="w-10 h-10 rounded-full" />
-            <span className="font-display text-2xl text-foreground">— PetPal</span>
+            <Logo size="md" showText={true} />
           </motion.div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

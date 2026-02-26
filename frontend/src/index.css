@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -93,13 +93,13 @@
   }
 
   h1, h2, h3 {
-    font-family: 'Anton', sans-serif;
+    font-family: 'Fredoka', sans-serif;
   }
 }
 
 @layer utilities {
   .font-display {
-    font-family: 'Anton', sans-serif;
+    font-family: 'Fredoka', sans-serif;
   }
 
   .font-body {

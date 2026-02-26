@@ -90,19 +90,14 @@ export default function HealthRecords() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      console.log("Fetching pet data for ID:", petId);
-      
       // Fetch pet details
       const petResponse = await fetch(`http://localhost:8000/api/v1/pets/${petId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
-      console.log("Pet response status:", petResponse.status);
-      
       let petData: Pet | null = null;
       if (petResponse.ok) {
         petData = await petResponse.json();
-        console.log("Pet data received:", petData);
         setPet(petData);
       } else {
         const errorText = await petResponse.text();
@@ -121,11 +116,8 @@ export default function HealthRecords() {
         }
       );
       
-      console.log("Health records response status:", recordsResponse.status);
-      
       if (recordsResponse.ok) {
         const recordsData = await recordsResponse.json();
-        console.log("Health records data:", recordsData);
         setHealthRecords(recordsData.records || []);
         
         // Extract vaccinations from health records
@@ -151,7 +143,6 @@ export default function HealthRecords() {
       
       if (weightHistoryResponse.ok) {
         const weightHistoryData = await weightHistoryResponse.json();
-        console.log("Weight history data:", weightHistoryData);
         
         // Convert weight records to the format expected by the UI
         const weights: WeightEntry[] = weightHistoryData.records.map((record: any) => ({
@@ -173,7 +164,6 @@ export default function HealthRecords() {
       
       if (vaccinationsResponse.ok) {
         const vaccinationsData = await vaccinationsResponse.json();
-        console.log("Vaccinations data:", vaccinationsData);
         setVaccinations(vaccinationsData);
       }
 
@@ -187,7 +177,6 @@ export default function HealthRecords() {
       
       if (medicalHistoryResponse.ok) {
         const medicalHistoryData = await medicalHistoryResponse.json();
-        console.log("Medical history data:", medicalHistoryData);
         setMedicalHistory(medicalHistoryData);
       }
     } catch (error) {

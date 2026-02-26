@@ -75,13 +75,6 @@ class NotificationService:
                         # Send notification based on user preferences
                         if prefs.get("push_notifications", True):
                             await self._send_push_notification(notification)
-                        
-                        if prefs.get("email_notifications", True):
-                            await self._send_email_notification(notification)
-                        
-                        if prefs.get("sms_notifications", False):
-                            await self._send_sms_notification(notification)
-                        
                         results["reminders_scheduled"] += 1
                         results["notifications_sent"] += 1
                         
@@ -145,13 +138,6 @@ class NotificationService:
                         # Send notification based on user preferences
                         if prefs.get("push_notifications", True):
                             await self._send_push_notification(notification)
-                        
-                        if prefs.get("email_notifications", True):
-                            await self._send_email_notification(notification)
-                        
-                        if prefs.get("sms_notifications", False):
-                            await self._send_sms_notification(notification)
-                        
                         results["reminders_scheduled"] += 1
                         results["notifications_sent"] += 1
                         
@@ -219,13 +205,6 @@ class NotificationService:
                         # Send notification based on user preferences
                         if prefs.get("push_notifications", True):
                             await self._send_push_notification(notification)
-                        
-                        if prefs.get("email_notifications", True):
-                            await self._send_email_notification(notification)
-                        
-                        if prefs.get("sms_notifications", False):
-                            await self._send_sms_notification(notification)
-                        
                         # Mark 24-hour reminder as sent
                         appointment.reminder_sent_24h = True
                         
@@ -271,13 +250,6 @@ class NotificationService:
                         # Send notification based on user preferences
                         if prefs.get("push_notifications", True):
                             await self._send_push_notification(notification)
-                        
-                        if prefs.get("email_notifications", True):
-                            await self._send_email_notification(notification)
-                        
-                        if prefs.get("sms_notifications", False):
-                            await self._send_sms_notification(notification)
-                        
                         # Mark 2-hour reminder as sent
                         appointment.reminder_sent_2h = True
                         
@@ -339,12 +311,6 @@ class NotificationService:
                         
                         # Generate health report for user's pets
                         report = await self._generate_health_report(session, user)
-                        
-                        # Send report via email (primary method for reports)
-                        if prefs.get("email_notifications", True):
-                            await self._send_health_report_email(user, report)
-                            results["reports_sent"] += 1
-                        
                         results["reports_generated"] += 1
                         
                     except Exception as e:
@@ -525,143 +491,8 @@ class NotificationService:
         """Send push notification (placeholder implementation)."""
         logger.info(f"Sending push notification: {notification['title']}")
         # Implementation would integrate with push notification service
+        # For production, consider using Firebase Cloud Messaging (FCM) or similar
         return True
-    
-    async def _send_email_notification(self, notification: Dict[str, Any]) -> bool:
-        """Send email notification using SendGrid service."""
-        try:
-            from app.services.email_service import email_service
-            
-            user_email = notification.get('user_email')
-            if not user_email:
-                logger.warning("No email address provided for email notification")
-                return False
-            
-            # Create email content based on notification type
-            notification_type = notification.get('type', 'general')
-            title = notification.get('title', 'PawPal Notification')
-            message = notification.get('message', '')
-            
-            # Generate HTML content
-            html_content = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
-                    <h2>🐾 {title}</h2>
-                </div>
-                <div style="padding: 20px; background-color: #f9f9f9;">
-                    <p>{message}</p>
-                    
-                    <div style="margin-top: 20px; padding: 15px; background-color: white; border-radius: 8px;">
-                        <p style="margin: 0; color: #666;">
-                            This notification was sent by PawPal Pet Care Assistant.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            """
-            
-            result = await email_service.send_email(
-                to_email=user_email,
-                subject=title,
-                html_content=html_content,
-                from_name="PawPal Pet Care Assistant"
-            )
-            
-            if result.success:
-                logger.info(f"Email notification sent successfully to {user_email}")
-                return True
-            else:
-                logger.error(f"Failed to send email notification to {user_email}: {result.error}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error sending email notification: {e}")
-            return False
-    
-    async def _send_sms_notification(self, notification: Dict[str, Any]) -> bool:
-        """Send SMS notification using Twilio service."""
-        try:
-            from app.services.sms_service import sms_service
-            
-            phone_number = notification.get('user_phone')
-            if not phone_number:
-                logger.warning("No phone number provided for SMS notification")
-                return False
-            
-            # Determine message type and priority based on notification type
-            notification_type = notification.get('type', 'general')
-            priority = 'normal'
-            
-            if notification_type == 'medication_reminder':
-                result = await sms_service.send_medication_reminder(
-                    to_phone=phone_number,
-                    pet_name=notification.get('pet_name', 'your pet'),
-                    medication_name=notification.get('medication_name', 'medication'),
-                    dosage=notification.get('dosage', 'prescribed dosage'),
-                    scheduled_time=notification.get('scheduled_time', 'now')
-                )
-            elif notification_type == 'feeding_reminder':
-                result = await sms_service.send_feeding_reminder(
-                    to_phone=phone_number,
-                    pet_name=notification.get('pet_name', 'your pet'),
-                    food_type=notification.get('food_type', 'food'),
-                    amount=notification.get('amount', 'regular amount'),
-                    scheduled_time=notification.get('scheduled_time', 'now')
-                )
-            elif notification_type == 'appointment_reminder':
-                result = await sms_service.send_appointment_reminder(
-                    to_phone=phone_number,
-                    pet_name=notification.get('pet_name', 'your pet'),
-                    appointment_type=notification.get('appointment_type', 'appointment'),
-                    clinic_name=notification.get('clinic_name', 'veterinary clinic'),
-                    appointment_time=notification.get('appointment_time', 'scheduled time'),
-                    reminder_type=notification.get('reminder_type', '24_hours')
-                )
-            else:
-                # Generic SMS for other notification types
-                result = await sms_service.send_sms(
-                    to_phone=phone_number,
-                    message=notification.get('message', notification.get('title', 'PawPal notification')),
-                    message_type=notification_type,
-                    priority=priority
-                )
-            
-            if result.success:
-                logger.info(f"SMS notification sent successfully to {phone_number}, SID: {result.message_sid}")
-                return True
-            else:
-                logger.error(f"Failed to send SMS notification to {phone_number}: {result.error}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error sending SMS notification: {e}")
-            return False
-    
-    async def _send_health_report_email(self, user: User, report: Dict[str, Any]) -> bool:
-        """Send weekly health report via email using SendGrid service."""
-        try:
-            from app.services.email_service import email_service
-            
-            user_name = f"{user.first_name} {user.last_name}".strip()
-            if not user_name:
-                user_name = user.email.split('@')[0]  # Use email prefix as fallback
-            
-            result = await email_service.send_weekly_health_report(
-                to_email=user.email,
-                user_name=user_name,
-                report_data=report
-            )
-            
-            if result.success:
-                logger.info(f"Weekly health report sent successfully to {user.email}")
-                return True
-            else:
-                logger.error(f"Failed to send health report to {user.email}: {result.error}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error sending health report email: {e}")
-            return False
 
 
 # Global notification service instance

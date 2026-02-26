@@ -41,7 +41,7 @@ const LandingPreview = () => {
       buttonText: 'Get Started Free',
     });
     
-    console.log('CTA clicked - would navigate to onboarding');
+    // Navigate to onboarding
     // navigate('/onboarding');
   };
 

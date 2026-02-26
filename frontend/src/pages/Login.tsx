@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NoiseOverlay } from "@/components/NoiseOverlay";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import petpalLogo from "@/assets/petpal-logo.png";
+import { Logo } from "@/components/Logo";
 
 const floatingEmojis = ["🐕", "🐱", "🐦", "🐰", "🐟", "🐾", "❤️", "🌿"];
 
@@ -16,20 +16,66 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
-    // Generate mock credentials
-    const mockToken = "mock-token-" + Date.now();
-    const mockUserId = "mock-user-" + Date.now();
-    
-    // Use AuthContext to manage authentication state
-    login(mockToken, mockUserId, email, name || "Pet Parent");
-    
-    // Navigate to onboarding for new users (register) or dashboard for existing users (login)
-    const destination = isRegister ? "/onboarding" : "/dashboard";
-    setTimeout(() => navigate(destination), 1200);
+    try {
+      if (isRegister) {
+        // Register new user
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}/v1/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            full_name: name
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          alert(data.detail || 'Registration failed');
+          setIsLoggingIn(false);
+          return;
+        }
+        
+        // Use AuthContext to manage authentication state
+        login(data.access_token, data.user_id, email, name);
+        
+        // Navigate to onboarding for new users
+        setTimeout(() => navigate("/onboarding"), 1200);
+      } else {
+        // Login existing user
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}/v1/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          alert(data.detail || 'Login failed');
+          setIsLoggingIn(false);
+          return;
+        }
+        
+        // Use AuthContext to manage authentication state
+        login(data.access_token, data.user_id, email, data.full_name || name || "Pet Parent");
+        
+        // Navigate to dashboard for existing users
+        setTimeout(() => navigate("/dashboard"), 1200);
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      alert('Connection error. Please check if the backend is running.');
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -74,14 +120,14 @@ const Login = () => {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="text-center"
             >
-              <motion.span
-                className="text-8xl block mb-4"
+              <motion.div
+                className="mb-4 flex justify-center"
                 animate={{ rotate: [0, -10, 10, 0] }}
                 transition={{ duration: 1, repeat: 1 }}
               >
-                🐾
-              </motion.span>
-              <p className="font-display text-4xl text-primary-foreground">Welcome to PetPal</p>
+                <Logo size="xl" showText={false} />
+              </motion.div>
+              <p className="font-display text-4xl text-primary-foreground font-bold">Welcome to PawPal</p>
             </motion.div>
           </motion.div>
         )}
@@ -95,15 +141,10 @@ const Login = () => {
       >
         {/* Logo */}
         <div className="text-center mb-10">
-          <motion.img
-            src={petpalLogo}
-            alt="PetPal"
-            className="w-20 h-20 rounded-full mx-auto mb-4 shadow-forest"
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            whileHover={{ scale: 1.15, rotate: 10 }}
-          />
-          <h1 className="font-display text-6xl text-foreground">PetPal</h1>
+          <div className="mb-4">
+            <Logo size="lg" showText={false} animated={true} className="justify-center" />
+          </div>
+          <h1 className="font-display text-6xl bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 bg-clip-text text-transparent font-bold tracking-tight">PawPal</h1>
           <p className="text-label text-muted-foreground mt-2">Your Pet Care Companion</p>
         </div>
 

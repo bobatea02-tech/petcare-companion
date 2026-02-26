@@ -179,8 +179,6 @@ export const AddPetStep = ({ onComplete }: AddPetStepProps) => {
         if (data.photo) {
           try {
             // Photo upload logic would go here
-            // For now, we'll just log it
-            console.log('[AddPetStep] Photo upload would happen here');
           } catch (photoError) {
             console.error('[AddPetStep] Photo upload failed:', photoError);
             setPhotoUploadFailed(true);

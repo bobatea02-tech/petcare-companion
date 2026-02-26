@@ -113,24 +113,28 @@ def is_session_valid(token: str) -> bool:
     if token not in active_sessions:
         return False
     
-    session = active_sessions[token]
-    current_time = time.time()
-    
-    # Check absolute session timeout
-    session_age = current_time - session["created_at"]
-    if session_age > (settings.SESSION_TIMEOUT_MINUTES * 60):
-        logger.info(f"Session expired (absolute timeout) for user {session['user_id']}")
-        invalidate_session(token)
-        return False
-    
-    # Check idle timeout
-    idle_time = current_time - session["last_activity"]
-    if idle_time > (settings.SESSION_IDLE_TIMEOUT_MINUTES * 60):
-        logger.info(f"Session expired (idle timeout) for user {session['user_id']}")
-        invalidate_session(token)
-        return False
-    
+    # Session expiration disabled - sessions remain valid indefinitely
     return True
+    
+    # Commented out session expiration logic
+    # session = active_sessions[token]
+    # current_time = time.time()
+    # 
+    # # Check absolute session timeout
+    # session_age = current_time - session["created_at"]
+    # if session_age > (settings.SESSION_TIMEOUT_MINUTES * 60):
+    #     logger.info(f"Session expired (absolute timeout) for user {session['user_id']}")
+    #     invalidate_session(token)
+    #     return False
+    # 
+    # # Check idle timeout
+    # idle_time = current_time - session["last_activity"]
+    # if idle_time > (settings.SESSION_IDLE_TIMEOUT_MINUTES * 60):
+    #     logger.info(f"Session expired (idle timeout) for user {session['user_id']}")
+    #     invalidate_session(token)
+    #     return False
+    # 
+    # return True
 
 
 def invalidate_session(token: str):

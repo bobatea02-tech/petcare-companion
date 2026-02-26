@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microphone Test - PawPal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a4d2e 0%, #2d5f3f 100%);
+            color: #fff;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid #22c55e;
+        }
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+        }
+        .status.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid #3b82f6;
+        }
+        button {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #16a34a;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            transform: none;
+        }
+        button.stop {
+            background: #ef4444;
+        }
+        button.stop:hover {
+            background: #dc2626;
+        }
+        #transcript {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            min-height: 60px;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .indicator.green {
+            background: #22c55e;
+        }
+        .indicator.red {
+            background: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Microphone & Voice Recognition Test</h1>
+        
+        <!-- Browser Support Check -->
+        <div class="test-section">
+            <h2>1. Browser Support</h2>
+            <div id="browserSupport"></div>
+        </div>
+
+        <!-- Microphone Permission -->
+        <div class="test-section">
+            <h2>2. Microphone Permission</h2>
+            <button onclick="requestMicrophonePermission()">Request Microphone Access</button>
+            <div id="micPermission"></div>
+        </div>
+
+        <!-- Voice Recognition Test -->
+        <div class="test-section">
+            <h2>3. Voice Recognition Test</h2>
+            <p>Click "Start Listening" and speak into your microphone.</p>
+            <button id="startBtn" onclick="startListening()">Start Listening</button>
+            <button id="stopBtn" onclick="stopListening()" class="stop" style="display:none;">Stop Listening</button>
+            <div id="listeningStatus"></div>
+            <div id="transcript"></div>
+        </div>
+
+        <!-- Debug Log -->
+        <div class="test-section">
+            <h2>4. Debug Log</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let logEntries = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.push(`[${timestamp}] ${message}`);
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = logEntries.map(entry => 
+                `<div class="log-entry">${entry}</div>`
+            ).reverse().join('');
+        }
+
+        // Check browser support
+        function checkBrowserSupport() {
+            const supportDiv = document.getElementById('browserSupport');
+            const hasSpeechRecognition = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+            const hasSpeechSynthesis = 'speechSynthesis' in window;
+            const hasMediaDevices = 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+
+            let html = '';
+            
+            if (hasSpeechRecognition) {
+                html += '<div class="status success"><span class="indicator green"></span>Speech Recognition: Supported ✓</div>';
+                addLog('Speech Recognition API is supported');
+            } else {
+                html += '<div class="status error"><span class="indicator red"></span>Speech Recognition: Not Supported ✗</div>';
+                addLog('Speech Recognition API is NOT supported', 'error');
+            }
+
+            if (hasSpeechSynthesis) {
+                html += '<div class="status success"><span class="indicator green"></span>Speech Synthesis: Supported ✓</div>';
+                addLog('Speech Synthesis API is supported');
+            } else {
+                html += '<div class="status error"><span class="indicator red"></span>Speech Synthesis: Not Supported ✗</div>';
+                addLog('Speech Synthesis API is NOT supported', 'error');
+            }
+
+            if (hasMediaDevices) {
+                html += '<div class="status success"><span class="indicator green"></span>Media Devices: Supported ✓</div>';
+                addLog('Media Devices API is supported');
+            } else {
+                html += '<div class="status error"><span class="indicator red"></span>Media Devices: Not Supported ✗</div>';
+                addLog('Media Devices API is NOT supported', 'error');
+            }
+
+            supportDiv.innerHTML = html;
+        }
+
+        // Request microphone permission
+        async function requestMicrophonePermission() {
+            const permDiv = document.getElementById('micPermission');
+            addLog('Requesting microphone permission...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                permDiv.innerHTML = '<div class="status success"><span class="indicator green"></span>Microphone Access: Granted ✓</div>';
+                addLog('Microphone permission granted');
+                
+                // Stop the stream
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                permDiv.innerHTML = `<div class="status error"><span class="indicator red"></span>Microphone Access: Denied ✗<br>Error: ${error.message}</div>`;
+                addLog(`Microphone permission denied: ${error.message}`, 'error');
+            }
+        }
+
+        // Start listening
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('stopBtn').style.display = 'inline-block';
+                document.getElementById('listeningStatus').innerHTML = 
+                    '<div class="status info"><span class="indicator red"></span>Listening... Speak now!</div>';
+                document.getElementById('transcript').innerHTML = '<em>Waiting for speech...</em>';
+                addLog('Voice recognition started - listening...');
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    const confidence = event.results[i][0].confidence;
+                    
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                        addLog(`Final result: "${transcript}" (confidence: ${confidence.toFixed(2)})`);
+                    } else {
+                        interimTranscript += transcript;
+                        addLog(`Interim result: "${transcript}"`);
+                    }
+                }
+
+                const displayText = finalTranscript || interimTranscript;
+                document.getElementById('transcript').innerHTML = 
+                    `<strong>${finalTranscript ? 'Final:' : 'Interim:'}</strong> ${displayText}`;
+            };
+
+            recognition.onerror = (event) => {
+                document.getElementById('listeningStatus').innerHTML = 
+                    `<div class="status error"><span class="indicator red"></span>Error: ${event.error}</div>`;
+                addLog(`Voice recognition error: ${event.error}`, 'error');
+                resetButtons();
+            };
+
+            recognition.onend = () => {
+                document.getElementById('listeningStatus').innerHTML = 
+                    '<div class="status info"><span class="indicator green"></span>Listening stopped</div>';
+                addLog('Voice recognition ended');
+                resetButtons();
+            };
+
+            recognition.start();
+            addLog('Starting voice recognition...');
+        }
+
+        // Stop listening
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+                addLog('Stopping voice recognition...');
+            }
+        }
+
+        // Reset buttons
+        function resetButtons() {
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+        }
+
+        // Initialize on page load
+        window.onload = () => {
+            checkBrowserSupport();
+            addLog('Page loaded - ready for testing');
+        };
+    </script>
+</body>
+</html>

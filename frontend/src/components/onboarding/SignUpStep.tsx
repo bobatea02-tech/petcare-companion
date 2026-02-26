@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { api } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Form validation schema
 const signUpSchema = z.object({
@@ -35,7 +36,9 @@ export const SignUpStep = ({ onComplete }: SignUpStepProps) => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
+  const [showLoginLink, setShowLoginLink] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -92,12 +95,16 @@ export const SignUpStep = ({ onComplete }: SignUpStepProps) => {
         // Display specific authentication error messages
         if (response.error.includes('already exists') || response.error.includes('already registered')) {
           setAuthError("This email is already registered. Please sign in instead.");
+          setShowLoginLink(true);
         } else if (response.error.includes('invalid email')) {
           setAuthError("Please enter a valid email address.");
+          setShowLoginLink(false);
         } else if (response.error.includes('weak password')) {
           setAuthError("Password is too weak. Please use a stronger password.");
+          setShowLoginLink(false);
         } else {
           setAuthError(response.error);
+          setShowLoginLink(false);
         }
         setIsLoading(false);
         return;
@@ -241,6 +248,17 @@ export const SignUpStep = ({ onComplete }: SignUpStepProps) => {
               <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
               <div className="flex-1">
                 <p className="font-body text-sm text-destructive">{authError}</p>
+                {showLoginLink && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/login')}
+                    className="mt-2 rounded-[2.5rem] border-primary text-primary hover:bg-primary/10"
+                  >
+                    Go to Login Page
+                  </Button>
+                )}
                 {isNetworkError && (
                   <Button
                     type="button"

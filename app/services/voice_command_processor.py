@@ -35,10 +35,19 @@ class VoiceCommandProcessor:
         """Initialize with Gemini API for intent recognition."""
         self.api_key = settings.GEMINI_API_KEY
         if not self.api_key:
-            raise ValueError("GEMINI_API_KEY not configured")
-        
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+            logger.error("GEMINI_API_KEY not configured")
+            self.model = None
+            self.api_configured = False
+        else:
+            try:
+                genai.configure(api_key=self.api_key)
+                self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
+                self.api_configured = True
+                logger.info("Voice command processor initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to configure Gemini API: {str(e)}")
+                self.model = None
+                self.api_configured = False
     
     async def process_command(
         self,
@@ -59,6 +68,17 @@ class VoiceCommandProcessor:
         Returns:
             Dict with success, action_type, result, and response_text
         """
+        # Check if API is configured
+        if not self.api_configured:
+            return {
+                "success": False,
+                "action_type": "error",
+                "result": {},
+                "response_text": "Voice command processing is currently unavailable. AI service not configured.",
+                "speak_response": True,  # Always speak error messages
+                "needs_clarification": False
+            }
+        
         try:
             # Step 1: Extract pet name if not provided
             if not pet_name:
@@ -139,7 +159,9 @@ class VoiceCommandProcessor:
                 "success": False,
                 "action_type": "error",
                 "result": {},
-                "response_text": "Sorry, I encountered an error processing your command."
+                "response_text": "Sorry, I encountered an error processing your command.",
+                "speak_response": True,  # Always speak error messages
+                "needs_clarification": False
             }
     
     async def _analyze_command_intent(

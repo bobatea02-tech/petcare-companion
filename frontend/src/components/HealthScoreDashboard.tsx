@@ -120,9 +120,9 @@ export const HealthScoreDashboard: React.FC<HealthScoreDashboardProps> = ({ petI
   }
 
   return (
-    <div className="space-y-6 p-4" role="region" aria-label="Pet Health Score Dashboard">
+    <div className="space-y-6 p-4 max-w-full" role="region" aria-label="Pet Health Score Dashboard">
       {/* Overall Score Card */}
-      <Card className="bg-cream-50 border-sage-200">
+      <Card className="bg-cream-50 border-sage-200 max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="font-anton text-forest-800">Pet Health Score</CardTitle>
           <CardDescription className="font-inter text-sage-600">
@@ -139,91 +139,94 @@ export const HealthScoreDashboard: React.FC<HealthScoreDashboardProps> = ({ petI
         </CardContent>
       </Card>
 
-      {/* Category Breakdown */}
-      <Card className="bg-cream-50 border-sage-200">
-        <CardHeader>
-          <CardTitle className="font-anton text-forest-800">Category Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4" role="list" aria-label="Health category scores">
-            {categoryData.map((category) => {
-              const Icon = category.icon;
-              const colorClass = {
-                red: 'text-red-500',
-                yellow: 'text-yellow-500',
-                green: 'text-green-500',
-              }[category.color];
-
-              return (
-                <div
-                  key={category.name}
-                  role="listitem"
-                  aria-label={getCategoryScoreAriaLabel(category.name, category.score)}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-white border border-sage-100"
-                  tabIndex={0}
-                >
-                  <Icon className={`w-6 h-6 ${colorClass}`} aria-hidden="true" />
-                  <div className="flex-1">
-                    <p className="text-sm font-inter font-medium text-forest-800">
-                      {category.name}
-                    </p>
-                    <p className={`text-lg font-bold ${colorClass}`}>
-                      {category.score}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Trend Chart */}
-      {trendData.length > 0 && (
+      {/* Category Breakdown and Trend Chart - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-none">
+        {/* Category Breakdown */}
         <Card className="bg-cream-50 border-sage-200">
-          <CardHeader>
-            <CardTitle className="font-anton text-forest-800">30-Day Trend</CardTitle>
-            <CardDescription className="font-inter text-sage-600">
-              Health score history
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-anton text-forest-800 text-xl">Category Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
-            <div {...chartA11y.chartContainerProps(
-              chartA11y.getChartDescription('Line', trendData.length, 'stable')
-            )}>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
-                  <XAxis
-                    dataKey="date"
-                    stroke="#6b7280"
-                    style={{ fontSize: '0.75rem' }}
-                  />
-                  <YAxis
-                    domain={[0, 100]}
-                    stroke="#6b7280"
-                    style={{ fontSize: '0.75rem' }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fffbf5',
-                      border: '1px solid #a8b5a0',
-                      borderRadius: '0.5rem',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#2d5016"
-                    strokeWidth={2}
-                    dot={{ fill: '#2d5016', r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-6" role="list" aria-label="Health category scores">
+              {categoryData.map((category) => {
+                const Icon = category.icon;
+                const colorClass = {
+                  red: 'text-red-500',
+                  yellow: 'text-yellow-500',
+                  green: 'text-green-500',
+                }[category.color];
+
+                return (
+                  <div
+                    key={category.name}
+                    role="listitem"
+                    aria-label={getCategoryScoreAriaLabel(category.name, category.score)}
+                    className="flex items-center space-x-4 p-4 rounded-lg bg-white border border-sage-100"
+                    tabIndex={0}
+                  >
+                    <Icon className={`w-8 h-8 ${colorClass}`} aria-hidden="true" />
+                    <div className="flex-1">
+                      <p className="text-base font-inter font-medium text-forest-800">
+                        {category.name}
+                      </p>
+                      <p className={`text-2xl font-bold ${colorClass}`}>
+                        {category.score}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
-      )}
+
+        {/* Trend Chart */}
+        {trendData.length > 0 && (
+          <Card className="bg-cream-50 border-sage-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="font-anton text-forest-800 text-xl">30-Day Trend</CardTitle>
+              <CardDescription className="font-inter text-sage-600">
+                Health score history
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div {...chartA11y.chartContainerProps(
+                chartA11y.getChartDescription('Line', trendData.length, 'stable')
+              )}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#6b7280"
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      stroke="#6b7280"
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#fffbf5',
+                        border: '1px solid #a8b5a0',
+                        borderRadius: '0.5rem',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#2d5016"
+                      strokeWidth={3}
+                      dot={{ fill: '#2d5016', r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Recommendations */}
       {healthScore.recommendations.length > 0 && (

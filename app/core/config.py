@@ -60,8 +60,8 @@ class Settings(BaseSettings):
     
     # Security Settings
     SECRET_KEY: str = Field(
-        default="your-secret-key-change-in-production",
-        description="Secret key for JWT token generation"
+        ...,
+        description="Secret key for JWT token generation - MUST be set in .env"
     )
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -74,12 +74,12 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY_ROTATION_DAYS: int = 90
     
     # HTTPS/TLS Settings
-    FORCE_HTTPS: bool = True  # Redirect HTTP to HTTPS in production
+    FORCE_HTTPS: bool = False  # Set to True in production
     HSTS_MAX_AGE: int = 31536000  # 1 year in seconds
     HSTS_INCLUDE_SUBDOMAINS: bool = True
     
     # Security Headers
-    ENABLE_SECURITY_HEADERS: bool = True
+    ENABLE_SECURITY_HEADERS: bool = False  # Set to True in production
     CSP_POLICY: str = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     
     # External API Keys
@@ -94,30 +94,6 @@ class Settings(BaseSettings):
     SCALEDOWN_API_KEY: Optional[str] = Field(
         default=None,
         description="ScaleDown API key for knowledge base compression"
-    )
-    GOOGLE_MAPS_API_KEY: Optional[str] = Field(
-        default=None,
-        description="Google Maps API key for location services"
-    )
-    TWILIO_ACCOUNT_SID: Optional[str] = Field(
-        default=None,
-        description="Twilio Account SID for SMS notifications"
-    )
-    TWILIO_AUTH_TOKEN: Optional[str] = Field(
-        default=None,
-        description="Twilio Auth Token for SMS notifications"
-    )
-    TWILIO_PHONE_NUMBER: Optional[str] = Field(
-        default=None,
-        description="Twilio phone number for sending SMS"
-    )
-    SENDGRID_API_KEY: Optional[str] = Field(
-        default=None,
-        description="SendGrid API key for email notifications"
-    )
-    SENDGRID_FROM_EMAIL: Optional[str] = Field(
-        default=None,
-        description="SendGrid from email address"
     )
     
     # AI Model Configuration

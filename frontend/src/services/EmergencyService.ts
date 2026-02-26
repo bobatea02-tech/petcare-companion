@@ -115,7 +115,7 @@ class EmergencyService {
    */
   generateMedicalSummary(petId: string): MedicalSummary {
     // Get pet data from localStorage
-    const petsData = localStorage.getItem('pets');
+    const petsData = localStorage.getItem('petpal_pets');
     const pets = petsData ? JSON.parse(petsData) : [];
     const pet = pets.find((p: any) => p.id === petId);
 

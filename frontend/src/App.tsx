@@ -25,6 +25,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Messages = lazy(() => import("./pages/Messages"));
 const Appointments = lazy(() => import("./pages/Appointments"));
 const HealthRecords = lazy(() => import("./pages/HealthRecords"));
+const MultiPetComparison = lazy(() => import("./pages/MultiPetComparison"));
 const TestMumbaiAPI = lazy(() => import("./pages/TestMumbaiAPI"));
 const VetSearch = lazy(() => import("./pages/VetSearch"));
 const LandingPreview = lazy(() => import("./pages/LandingPreview"));
@@ -132,6 +133,16 @@ const App = () => (
                       <ProtectedRoute>
                         <ErrorBoundary featureName="Health Records">
                           <HealthRecords />
+                        </ErrorBoundary>
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/multi-pet-comparison" 
+                    element={
+                      <ProtectedRoute>
+                        <ErrorBoundary featureName="Multi-Pet Comparison">
+                          <MultiPetComparison />
                         </ErrorBoundary>
                       </ProtectedRoute>
                     } 

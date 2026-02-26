@@ -275,6 +275,14 @@ export const ReminderCalendar = ({ pets, isOpen = false, onToggle }: ReminderCal
   const dueCount = events.filter(e => e.status === "due").length;
   const overdueCount = events.filter(e => e.status === "overdue").length;
 
+  const handleToggle = () => {
+    const newState = !showCalendar;
+    setShowCalendar(newState);
+    if (onToggle) {
+      onToggle(newState);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -282,6 +290,51 @@ export const ReminderCalendar = ({ pets, isOpen = false, onToggle }: ReminderCal
       transition={{ duration: 0.6 }}
       className="mb-8"
     >
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Calendar className="w-5 h-5 text-primary" />
+          <h2 className="text-label text-foreground">Reminder Calendar</h2>
+          {events.length > 0 && (
+            <div className="flex items-center gap-2">
+              {overdueCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-pill bg-destructive/20 text-destructive font-semibold">
+                  {overdueCount} overdue
+                </span>
+              )}
+              {dueCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-pill bg-primary/20 text-primary font-semibold">
+                  {dueCount} due today
+                </span>
+              )}
+              {upcomingCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-pill bg-accent/20 text-accent font-semibold">
+                  {upcomingCount} upcoming
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <motion.button
+          onClick={handleToggle}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill bg-secondary/20 hover:bg-secondary/30 text-secondary-foreground text-sm font-semibold transition-colors"
+        >
+          {showCalendar ? (
+            <>
+              <ChevronUp className="w-4 h-4" />
+              Hide Calendar
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4" />
+              Show Calendar
+            </>
+          )}
+        </motion.button>
+      </div>
+
       {/* Calendar Content */}
       <AnimatePresence>
         {showCalendar && (

@@ -69,15 +69,12 @@ export function MumbaiRealtimeBooking({
   }, []);
 
   const initializeData = async () => {
-    console.log('Initializing Mumbai appointments data...');
     try {
       // Initialize Mumbai clinics
       if (!initialized) {
         try {
-          console.log('Initializing Mumbai clinics...');
           await api.initializeMumbaiClinics();
           setInitialized(true);
-          console.log('Clinics initialized successfully');
         } catch (error) {
           console.error('Failed to initialize clinics:', error);
           // Continue even if initialization fails (clinics might already exist)
@@ -86,14 +83,10 @@ export function MumbaiRealtimeBooking({
       
       // Load areas and services
       try {
-        console.log('Loading Mumbai areas...');
         const areasRes = await api.getMumbaiAreas();
-        console.log('Areas response:', areasRes);
         if (areasRes.data) {
-          console.log('Setting areas:', areasRes.data);
           setAreas(areasRes.data);
         } else {
-          console.log('No areas data, using fallback');
           // Fallback to hardcoded areas if API fails
           setAreas([
             'Parel',
@@ -124,14 +117,10 @@ export function MumbaiRealtimeBooking({
       }
       
       try {
-        console.log('Loading service types...');
         const servicesRes = await api.getServiceTypes();
-        console.log('Services response:', servicesRes);
         if (servicesRes.data) {
-          console.log('Setting services:', servicesRes.data);
           setServices(servicesRes.data);
         } else {
-          console.log('No services data, using fallback');
           // Fallback to hardcoded services if API fails
           setServices([
             'Emergency Care',
@@ -166,9 +155,6 @@ export function MumbaiRealtimeBooking({
           'Boarding',
         ]);
       }
-      
-      console.log('Final areas:', areas);
-      console.log('Final services:', services);
     } catch (error) {
       console.error('Failed to initialize:', error);
       setError('Failed to load data. Please refresh the page.');
@@ -202,7 +188,6 @@ export function MumbaiRealtimeBooking({
             navigator.geolocation.getCurrentPosition(resolve, reject);
           });
           
-          console.log('Searching by location:', position.coords);
           response = await api.findNearestClinics(
             position.coords.latitude,
             position.coords.longitude,
@@ -215,8 +200,6 @@ export function MumbaiRealtimeBooking({
         }
       }
       
-      console.log('Search response:', response);
-      
       if (response.data && response.data.length > 0) {
         setClinics(response.data);
         setStep('clinic');
@@ -225,7 +208,6 @@ export function MumbaiRealtimeBooking({
         
         // If no clinics found, try to initialize them
         if (response.error.includes('not found') || response.error.includes('No clinics')) {
-          console.log('No clinics found, attempting to initialize...');
           try {
             await api.initializeMumbaiClinics();
             setError('Clinics initialized! Please search again.');
@@ -392,7 +374,6 @@ export function MumbaiRealtimeBooking({
                 setLoading(true);
                 try {
                   const result = await api.initializeMumbaiClinics();
-                  console.log('Initialize result:', result);
                   alert('Clinics initialized! Please search again.');
                 } catch (error) {
                   console.error('Init error:', error);

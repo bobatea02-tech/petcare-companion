@@ -162,7 +162,6 @@ const VetSearch = () => {
       existingAppointments.push(appointmentData);
       localStorage.setItem('appointments', JSON.stringify(existingAppointments));
 
-      console.log("Booking successful:", appointmentData);
       toast({
         title: "Appointment booked!",
         description: `Your appointment at ${selectedClinic.name} has been scheduled.`,
